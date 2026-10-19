@@ -29,3 +29,6 @@ Thumbs.db
 *.csv
 *.docx
 ~$*
+
+# Contraseña de los funcionarios de prueba (comando funcionarios_prueba)
+credenciales_prueba.txt

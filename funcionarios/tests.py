@@ -1,4 +1,5 @@
 import datetime
+import io
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
@@ -166,3 +167,28 @@ class CatalogoTests(TestCase):
 
     def test_tipo_de_catalogo_desconocido(self):
         self.assertEqual(self.client.get('/funcionarios/configuracion/otros/').status_code, 404)
+
+
+class ComandoFuncionariosPruebaTests(TestCase):
+    def test_crear_y_borrar(self):
+        import tempfile
+        from django.core.management import call_command
+        from django.test import override_settings
+        from pathlib import Path
+
+        Area.objects.create(nombre='Sala de Hemodialisis')
+        with tempfile.TemporaryDirectory() as carpeta, override_settings(BASE_DIR=Path(carpeta)):
+            call_command('funcionarios_prueba', stdout=io.StringIO())
+            prueba = Funcionario.objects.filter(numero_documento__startswith='9000000')
+            self.assertEqual(prueba.count(), 15)
+            self.assertEqual(prueba.filter(cargo__nombre='Auxiliar de Enfermeria').count(), 7)
+            self.assertEqual(prueba.filter(cargo__nombre='Enfermero Profesional').count(), 5)
+            self.assertEqual(prueba.filter(cargo__nombre='Médico').count(), 3)
+            self.assertTrue((Path(carpeta) / 'credenciales_prueba.txt').exists())
+
+            call_command('funcionarios_prueba', stdout=io.StringIO())  # no duplica
+            self.assertEqual(prueba.count(), 15)
+
+            call_command('funcionarios_prueba', '--borrar', stdout=io.StringIO())
+            self.assertEqual(prueba.count(), 0)
+            self.assertFalse(Usuario.objects.filter(username__startswith='9000000').exists())
