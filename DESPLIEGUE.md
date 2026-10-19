@@ -3,7 +3,8 @@
 Guía paso a paso para subir Control de Horas a `https://SU_USUARIO.pythonanywhere.com`.
 
 > En todos los comandos, reemplace **SU_USUARIO** por su nombre de usuario de PythonAnywhere.
-> Si su usuario es `edwcaso77`, la ruta del proyecto queda `/home/edwcaso77/Control-de-Horas`.
+> Instalación actual: usuario `EDWCASO`, sitio https://edwcaso.pythonanywhere.com, proyecto en
+> `/home/EDWCASO/Control-de-Horas`, entorno virtual en `/home/EDWCASO/.virtualenvs/control-horas`.
 
 > ⚠️ El plan gratuito es para **pruebas y demostraciones**. Antes de cargar los datos reales de los
 > funcionarios, conviene pasar a un servidor pagado o institucional con copias de seguridad.
@@ -134,9 +135,9 @@ Toda la información está en el archivo `db.sqlite3`. Para descargar una copia:
 
 ## Mantener el sitio encendido
 
-El plan gratuito apaga la aplicación si no se renueva. Entre a la pestaña **Web** al menos cada
-**3 meses** y presione **"Run until 3 months from today"**. PythonAnywhere le envía un correo antes de
-que venza.
+El plan gratuito apaga la aplicación si no se renueva. Entre a la pestaña **Web** al menos **una vez
+al mes** y presione **"Run until 1 month from today"**. PythonAnywhere le envía un correo una semana
+antes de que venza.
 
 ## Si algo falla
 
