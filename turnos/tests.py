@@ -18,6 +18,13 @@ class TipoTurnoTests(TestCase):
         self.assertEqual(descanso.duracion_horas, 0)
         self.assertEqual(descanso.horario, 'Sin horario')
 
+    def test_franja_segun_hora_de_inicio(self):
+        self.assertEqual(TipoTurno(hora_inicio=datetime.time(5), hora_fin=datetime.time(14)).franja, 'manana')
+        self.assertEqual(TipoTurno(hora_inicio=datetime.time(11, 59), hora_fin=datetime.time(18)).franja, 'manana')
+        self.assertEqual(TipoTurno(hora_inicio=datetime.time(12), hora_fin=datetime.time(18)).franja, 'tarde')
+        self.assertEqual(TipoTurno(hora_inicio=datetime.time(19), hora_fin=datetime.time(7)).franja, 'tarde')
+        self.assertEqual(TipoTurno().franja, 'otros')
+
     def test_color_de_texto_legible(self):
         self.assertEqual(TipoTurno(color='#1F2A5C').color_texto, '#FFFFFF')
         self.assertEqual(TipoTurno(color='#6EC6D9').color_texto, '#333333')
@@ -99,14 +106,22 @@ class CuadroTurnoTests(DatosCuadroMixin, TestCase):
         self.client.post(self._url_dia(), {f'turno_{self.ana.pk}': '99999', 'alcance': 'dia'})
         self.assertFalse(AsignacionTurno.objects.exists())
 
-    def test_resumen_del_mes(self):
+    def test_nombres_por_franja_en_cada_dia(self):
+        descanso = TipoTurno.objects.create(nombre='Descanso', abreviatura='D')
         AsignacionTurno.objects.create(funcionario=self.ana, fecha=self.fecha, tipo_turno=self.manana)
         AsignacionTurno.objects.create(funcionario=self.admin, fecha=self.fecha, tipo_turno=self.manana)
         AsignacionTurno.objects.create(funcionario=self.luis, fecha=self.fecha, tipo_turno=self.noche)
         respuesta = self.client.get(reverse('turnos:cuadro'), {'anio': 2026, 'mes': 10})
         dia = next(d for s in respuesta.context['semanas'] for d in s if d['fecha'] == self.fecha)
-        self.assertEqual([(i['tipo'].abreviatura, i['total']) for i in dia['resumen']], [('M', 2), ('N', 1)])
-        self.assertContains(respuesta, 'Cuadro de turno')
+        nombres = {franja: [a.funcionario.nombre_corto for a in lista] for franja, lista in dia['franjas'].items()}
+        self.assertEqual(nombres, {'manana': ['Ana Pérez', 'Ana Pérez'], 'tarde': ['Luis Pérez'], 'otros': []})
+        self.assertContains(respuesta, 'Luis Pérez')
+        self.assertContains(respuesta, 'Mañana')
+
+        AsignacionTurno.objects.create(funcionario=self.ana, fecha=self.fecha + datetime.timedelta(days=1), tipo_turno=descanso)
+        respuesta = self.client.get(reverse('turnos:cuadro'), {'anio': 2026, 'mes': 10})
+        siguiente = next(d for s in respuesta.context['semanas'] for d in s if d['fecha'] == self.fecha + datetime.timedelta(days=1))
+        self.assertEqual(len(siguiente['franjas']['otros']), 1)
 
     def test_funcionario_inactivo_no_aparece(self):
         self.ana.usuario.is_active = False

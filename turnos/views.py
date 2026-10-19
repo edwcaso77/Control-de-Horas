@@ -5,7 +5,7 @@ from urllib.parse import urlencode
 from django.conf import settings
 from django.contrib import messages
 from django.db import transaction
-from django.db.models import Count, Q
+from django.db.models import Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -40,25 +40,26 @@ def _funcionarios_activos(area, cargo=None):
 
 @administrador_requerido
 def cuadro(request):
-    """Calendario del mes en modo edición: cada día muestra cuántos funcionarios hay en cada turno."""
+    """Calendario del mes en modo edición: cada día muestra, en las franjas de mañana y tarde, quién tiene turno."""
     contexto = contexto_mes(request)
     area = _area_elegida(request.GET)
 
     dias = [dia for semana in contexto['semanas'] for dia in semana]
-    conteos = (
+    asignaciones = (
         AsignacionTurno.objects
         .filter(fecha__range=(dias[0]['fecha'], dias[-1]['fecha']), funcionario__usuario__is_active=True)
         .filter(**({'funcionario__area': area} if area else {}))
-        .values('fecha', 'tipo_turno')
-        .annotate(total=Count('id'))
+        .select_related('funcionario', 'tipo_turno')
     )
-    tipos = {t.pk: t for t in TipoTurno.objects.all()}
-    resumen = defaultdict(list)
-    for fila in conteos:
-        resumen[fila['fecha']].append({'tipo': tipos[fila['tipo_turno']], 'total': fila['total']})
-    orden = list(tipos)
+    orden_tipos = {pk: i for i, pk in enumerate(TipoTurno.objects.values_list('pk', flat=True))}
+    por_dia = defaultdict(lambda: {'manana': [], 'tarde': [], 'otros': []})
+    for asignacion in asignaciones:
+        por_dia[asignacion.fecha][asignacion.tipo_turno.franja].append(asignacion)
     for dia in dias:
-        dia['resumen'] = sorted(resumen[dia['fecha']], key=lambda item: orden.index(item['tipo'].pk))
+        franjas = por_dia[dia['fecha']]
+        for lista in franjas.values():
+            lista.sort(key=lambda a: (orden_tipos[a.tipo_turno_id], a.funcionario.apellidos, a.funcionario.nombres))
+        dia['franjas'] = franjas
 
     contexto.update({
         'areas': Area.objects.filter(activo=True),

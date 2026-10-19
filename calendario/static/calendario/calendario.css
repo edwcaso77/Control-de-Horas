@@ -84,7 +84,7 @@
 .cuadricula {
     flex: 1;
     display: grid;
-    grid-template-columns: repeat(7, 1fr);
+    grid-template-columns: repeat(7, minmax(0, 1fr));
     /* Cada semana ocupa al menos lo que necesita su contenido y reparte el espacio sobrante. */
     grid-template-rows: auto repeat(var(--semanas), minmax(min-content, 1fr));
     border-top: 1px solid var(--borde);

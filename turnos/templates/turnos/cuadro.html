@@ -26,7 +26,7 @@
                 Primero cree los turnos en <a href="{% url 'turnos:tipos' %}">Tipos de turno</a>.
             </span>
         {% endfor %}
-        <span class="leyenda-ayuda">Clic en un día para asignar sus turnos · marque la casilla para elegir varios días · clic en «Lunes», «Martes»… para elegir todos esos días del mes.</span>
+        <span class="leyenda-ayuda">Cada día muestra quién trabaja en la mañana y en la tarde · clic en el día para asignar sus turnos · marque la casilla para elegir varios días · clic en «Lunes», «Martes»… para elegir todos esos días del mes.</span>
     </div>
 
     {% if modo_local %}
@@ -50,11 +50,12 @@
     </label>
     <a class="dia-enlace" href="{% url 'turnos:dia' dia.fecha.year dia.fecha.month dia.fecha.day %}{% if area %}?area={{ area.pk }}{% endif %}"
        aria-label="Asignar turnos del {{ dia.fecha|date:'j \d\e F' }}"></a>
-    <div class="resumen-dia">
-        {% for item in dia.resumen %}
-            <span class="chip" style="background: {{ item.tipo.color }}; color: {{ item.tipo.color_texto }}"
-                  title="{{ item.tipo.nombre }}: {{ item.total }}">{{ item.tipo.abreviatura }} {{ item.total }}</span>
-        {% endfor %}
+    <div class="franjas">
+        {% include 'turnos/_franja.html' with titulo='Mañana' clase='manana' asignaciones=dia.franjas.manana %}
+        {% include 'turnos/_franja.html' with titulo='Tarde' clase='tarde' asignaciones=dia.franjas.tarde %}
+        {% if dia.franjas.otros %}
+            {% include 'turnos/_franja.html' with titulo='Otros' clase='otros' asignaciones=dia.franjas.otros %}
+        {% endif %}
     </div>
 {% endblock %}
 

@@ -67,5 +67,10 @@ class Funcionario(models.Model):
         return f'{self.nombres} {self.apellidos}'
 
     @property
+    def nombre_corto(self):
+        """Primer nombre y primer apellido, para mostrar en espacios pequeños como el calendario."""
+        return f'{self.nombres.split()[0]} {self.apellidos.split()[0]}'
+
+    @property
     def activo(self):
         return self.usuario.is_active

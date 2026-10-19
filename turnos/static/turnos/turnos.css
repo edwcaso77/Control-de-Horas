@@ -42,15 +42,6 @@
 
 .dia-enlace:hover { background: rgba(7, 112, 184, .07); outline: 2px solid var(--azul-claro); outline-offset: -2px; }
 
-.resumen-dia {
-    position: relative;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 3px;
-    margin-top: 28px;
-    pointer-events: none;
-}
-
 /* Edición de un día */
 .navegacion-dia { display: flex; flex-wrap: wrap; gap: 8px; }
 
@@ -212,3 +203,47 @@
 
 .boton-borrar { margin-left: auto; border-color: var(--rojo); background: var(--rojo); color: #fff; }
 .boton-borrar:disabled { opacity: .5; cursor: not-allowed; }
+
+/* Cada día dividido en franjas de mañana y tarde, con los nombres de quienes tienen turno */
+.franjas {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    margin: 26px -6px 0;
+    pointer-events: none;
+}
+
+.franja {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 3px 4px 4px;
+    border-radius: 4px;
+}
+
+.franja-manana { background: rgba(110, 198, 217, .16); }
+.franja-tarde { background: rgba(31, 42, 92, .07); }
+.franja-otros { background: #F2F2F2; }
+
+.franja-titulo {
+    font-size: .62rem;
+    font-weight: 700;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    color: var(--texto-suave);
+}
+
+.persona {
+    display: block;
+    overflow: hidden;
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: .7rem;
+    line-height: 1.35;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.persona b { margin-right: 2px; }
+.franja-vacia { font-size: .7rem; color: #B8BEC4; }
