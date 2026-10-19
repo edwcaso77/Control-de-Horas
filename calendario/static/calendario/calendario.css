@@ -153,3 +153,16 @@
     .navegacion { grid-column: 1 / -1; grid-row: 2; flex-wrap: wrap; }
     .dia-semana { font-size: .75rem; padding: 6px 2px; }
 }
+
+/* Cada día del calendario es un enlace a la consulta de ese día */
+.dia-enlace {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+}
+
+.dia-enlace:hover {
+    background: rgba(7, 112, 184, .07);
+    outline: 2px solid var(--azul-claro);
+    outline-offset: -2px;
+}

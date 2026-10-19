@@ -16,6 +16,7 @@ from funcionarios.models import Area, Cargo, Funcionario
 from funcionarios.permisos import administrador_requerido
 
 from .forms import TipoTurnoForm
+from .franjas import agrupar_por_franja
 from .models import AsignacionTurno, TipoTurno
 
 
@@ -51,15 +52,9 @@ def cuadro(request):
         .filter(**({'funcionario__area': area} if area else {}))
         .select_related('funcionario', 'tipo_turno')
     )
-    orden_tipos = {pk: i for i, pk in enumerate(TipoTurno.objects.values_list('pk', flat=True))}
-    por_dia = defaultdict(lambda: {'manana': [], 'tarde': [], 'otros': []})
-    for asignacion in asignaciones:
-        por_dia[asignacion.fecha][asignacion.tipo_turno.franja].append(asignacion)
+    por_dia = agrupar_por_franja(asignaciones)
     for dia in dias:
-        franjas = por_dia[dia['fecha']]
-        for lista in franjas.values():
-            lista.sort(key=lambda a: (orden_tipos[a.tipo_turno_id], a.funcionario.apellidos, a.funcionario.nombres))
-        dia['franjas'] = franjas
+        dia['franjas'] = por_dia[dia['fecha']]
 
     contexto.update({
         'areas': Area.objects.filter(activo=True),

@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block titulo %}{{ fecha|date:'d/m/Y' }}{% endblock %}
+
+{% block estilos %}<link rel="stylesheet" href="{% static 'turnos/turnos.css' %}">{% endblock %}
+
+{% block contenido %}
+<header class="encabezado-pagina">
+    <h1>{{ fecha|date:'l j \d\e F \d\e Y'|capfirst }}</h1>
+    <div class="navegacion-dia">
+        <a class="boton" href="{% url 'calendario:dia' anterior.year anterior.month anterior.day %}{% if area %}?area={{ area.pk }}{% endif %}">&#8249; Día anterior</a>
+        <a class="boton" href="{% url 'calendario:dia' siguiente.year siguiente.month siguiente.day %}{% if area %}?area={{ area.pk }}{% endif %}">Día siguiente &#8250;</a>
+        <a class="boton" href="{% url 'calendario:mes' %}?anio={{ fecha.year }}&mes={{ fecha.month }}">Volver al mes</a>
+        {% if es_admin %}
+            <a class="boton boton-primario" href="{% url 'turnos:dia' fecha.year fecha.month fecha.day %}{% if area %}?area={{ area.pk }}{% endif %}">Editar turnos de este día</a>
+        {% endif %}
+    </div>
+</header>
+
+{% if es_admin %}
+    <form method="get" class="filtros">
+        <select name="area" aria-label="Área" onchange="this.form.submit()">
+            <option value="">Todas las áreas</option>
+            {% for a in areas %}
+                <option value="{{ a.pk }}"{% if area and a.pk == area.pk %} selected{% endif %}>{{ a }}</option>
+            {% endfor %}
+        </select>
+    </form>
+{% endif %}
+
+{% if not total %}
+    <div class="mensaje">
+        {% if es_admin %}No hay turnos asignados este día{% if area %} en {{ area }}{% endif %}.
+        {% else %}No tiene turno asignado este día.{% endif %}
+    </div>
+{% else %}
+    <div class="franjas-dia">
+        {% for titulo, clase, asignaciones in franjas %}
+            {% if asignaciones or clase != 'otros' %}
+                <section class="franja-dia franja-{{ clase }}">
+                    <h2>{{ titulo }} <span class="franja-cantidad">{{ asignaciones|length }}</span></h2>
+                    {% if asignaciones %}
+                        <div class="tabla-contenedor">
+                            <table class="tabla">
+                                <thead>
+                                    <tr>
+                                        <th>Turno</th>
+                                        <th>Funcionario</th>
+                                        <th>Cargo</th>
+                                        <th>Área</th>
+                                        <th>Horario</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for a in asignaciones %}
+                                        <tr>
+                                            <td><span class="chip" style="background: {{ a.tipo_turno.color }}; color: {{ a.tipo_turno.color_texto }}" title="{{ a.tipo_turno.nombre }}">{{ a.tipo_turno.abreviatura }}</span> {{ a.tipo_turno.nombre }}</td>
+                                            <td>{{ a.funcionario.apellidos }}, {{ a.funcionario.nombres }}</td>
+                                            <td>{{ a.funcionario.cargo|default:"—" }}</td>
+                                            <td>{{ a.funcionario.area|default:"—" }}</td>
+                                            <td>{{ a.tipo_turno.horario }}</td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="ayuda">Nadie en esta franja.</p>
+                    {% endif %}
+                </section>
+            {% endif %}
+        {% endfor %}
+    </div>
+{% endif %}
+{% endblock %}

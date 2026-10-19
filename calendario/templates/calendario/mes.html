@@ -1,1 +1,6 @@
 {% extends 'calendario/mes_base.html' %}
+
+{% block dia %}
+    <a class="dia-enlace" href="{% url 'calendario:dia' dia.fecha.year dia.fecha.month dia.fecha.day %}"
+       aria-label="Ver los turnos del {{ dia.fecha|date:'j \d\e F' }}"></a>
+{% endblock %}
