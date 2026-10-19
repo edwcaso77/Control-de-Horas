@@ -3,7 +3,7 @@ import datetime
 from django.test import TestCase
 from django.urls import reverse
 
-from funcionarios.models import Area
+from funcionarios.models import Area, Cargo
 from funcionarios.tests import crear_funcionario
 
 from .models import AsignacionTurno, TipoTurno
@@ -138,31 +138,58 @@ class VariosDiasTests(DatosCuadroMixin, TestCase):
     def _texto(self, fechas=None):
         return ','.join(d.isoformat() for d in (fechas or self.fechas))
 
-    def test_asignar_el_mismo_turno_a_varios_dias(self):
+    def _celda(self, funcionario, fecha):
+        return f'turno_{funcionario.pk}_{fecha.isoformat()}'
+
+    def test_cada_celda_se_asigna_por_separado(self):
+        d1, d2, d3 = self.fechas
         respuesta = self.client.post(self._url(), {
-            'fechas': self._texto(), f'turno_{self.ana.pk}': self.manana.pk, f'turno_{self.luis.pk}': '-',
+            'fechas': self._texto(),
+            self._celda(self.ana, d1): self.manana.pk,
+            self._celda(self.ana, d2): self.noche.pk,
+            self._celda(self.ana, d3): '',
+            self._celda(self.luis, d2): self.manana.pk,
         })
         self.assertRedirects(respuesta, f"{reverse('turnos:cuadro')}?anio=2026&mes=10")
-        fechas_ana = list(AsignacionTurno.objects.filter(funcionario=self.ana).values_list('fecha', flat=True))
-        self.assertEqual(fechas_ana, self.fechas)
-        self.assertFalse(AsignacionTurno.objects.filter(funcionario=self.luis).exists())
+        turnos = {(a.funcionario_id, a.fecha): a.tipo_turno for a in AsignacionTurno.objects.all()}
+        self.assertEqual(turnos, {
+            (self.ana.pk, d1): self.manana,
+            (self.ana.pk, d2): self.noche,
+            (self.luis.pk, d2): self.manana,
+        })
 
-    def test_no_cambiar_conserva_y_sin_turno_quita(self):
-        for d in self.fechas:
-            AsignacionTurno.objects.create(funcionario=self.ana, fecha=d, tipo_turno=self.noche)
-            AsignacionTurno.objects.create(funcionario=self.luis, fecha=d, tipo_turno=self.noche)
-        self.client.post(self._url(), {'fechas': self._texto(), f'turno_{self.ana.pk}': '-', f'turno_{self.luis.pk}': ''})
-        self.assertEqual(AsignacionTurno.objects.filter(funcionario=self.ana).count(), 3)
-        self.assertFalse(AsignacionTurno.objects.filter(funcionario=self.luis).exists())
+    def test_celda_vacia_quita_y_celda_ausente_conserva(self):
+        d1, d2, _ = self.fechas
+        AsignacionTurno.objects.create(funcionario=self.ana, fecha=d1, tipo_turno=self.noche)
+        AsignacionTurno.objects.create(funcionario=self.ana, fecha=d2, tipo_turno=self.noche)
+        self.client.post(self._url(), {'fechas': self._texto(), self._celda(self.ana, d1): ''})
+        self.assertEqual(list(AsignacionTurno.objects.values_list('fecha', flat=True)), [d2])
 
-    def test_formulario_muestra_turno_comun_o_no_cambiar(self):
-        for d in self.fechas:
-            AsignacionTurno.objects.create(funcionario=self.ana, fecha=d, tipo_turno=self.noche)
-        AsignacionTurno.objects.create(funcionario=self.luis, fecha=self.fechas[0], tipo_turno=self.manana)
+    def test_celda_sin_cambios_no_modifica_quien_asigno(self):
+        d1 = self.fechas[0]
+        asignacion = AsignacionTurno.objects.create(funcionario=self.ana, fecha=d1, tipo_turno=self.noche)
+        self.client.post(self._url(), {'fechas': self._texto(), self._celda(self.ana, d1): self.noche.pk})
+        asignacion.refresh_from_db()
+        self.assertIsNone(asignacion.asignado_por)
+
+    def test_tabla_muestra_turnos_actuales_por_dia(self):
+        AsignacionTurno.objects.create(funcionario=self.luis, fecha=self.fechas[1], tipo_turno=self.manana)
         filas = {f['funcionario'].pk: f for f in self.client.get(self._url(), {'fechas': self._texto()}).context['filas']}
-        self.assertEqual(filas[self.ana.pk]['comun'], self.noche)
-        self.assertIsNone(filas[self.luis.pk]['comun'])
-        self.assertEqual(filas[self.luis.pk]['turnos'], [self.manana, None, None])
+        self.assertEqual([c['turno'] for c in filas[self.luis.pk]['celdas']], [None, self.manana, None])
+
+    def test_filtro_por_cargo(self):
+        enfermero = Cargo.objects.create(nombre='Enfermero')
+        self.luis.cargo = enfermero
+        self.luis.save()
+        respuesta = self.client.get(self._url(), {'fechas': self._texto(), 'cargo': enfermero.pk})
+        self.assertEqual([f['funcionario'] for f in respuesta.context['filas']], [self.luis])
+
+        # Guardar con el filtro de cargo no toca a funcionarios de otros cargos.
+        AsignacionTurno.objects.create(funcionario=self.ana, fecha=self.fechas[0], tipo_turno=self.noche)
+        self.client.post(self._url(), {
+            'fechas': self._texto(), 'cargo': enfermero.pk, self._celda(self.ana, self.fechas[0]): '',
+        })
+        self.assertTrue(AsignacionTurno.objects.filter(funcionario=self.ana).exists())
 
     def test_fechas_invalidas_o_vacias(self):
         respuesta = self.client.get(self._url(), {'fechas': 'hola,2026-13-40'})
@@ -172,7 +199,9 @@ class VariosDiasTests(DatosCuadroMixin, TestCase):
 
     def test_respeta_el_area(self):
         AsignacionTurno.objects.create(funcionario=self.luis, fecha=self.fechas[0], tipo_turno=self.noche)
-        self.client.post(self._url(), {'fechas': self._texto(), 'area': self.urgencias.pk, f'turno_{self.luis.pk}': ''})
+        self.client.post(self._url(), {
+            'fechas': self._texto(), 'area': self.urgencias.pk, self._celda(self.luis, self.fechas[0]): '',
+        })
         self.assertTrue(AsignacionTurno.objects.filter(funcionario=self.luis).exists())
 
     def test_solo_administrador_en_varios_dias(self):

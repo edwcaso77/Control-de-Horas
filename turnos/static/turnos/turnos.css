@@ -159,3 +159,32 @@
     font-size: .85rem;
     font-weight: 600;
 }
+
+/* Tabla de varios días: una columna por día y una celda por funcionario */
+.filtro-etiqueta { align-self: center; font-weight: 600; }
+
+.tabla-turnos th.columna-dia,
+.tabla-turnos td.celda-dia {
+    width: 86px;
+    text-align: center;
+}
+
+.columna-fecha { display: block; margin-bottom: 4px; }
+
+.llenar-columna {
+    width: 76px;
+    padding: 2px 4px;
+    font-size: .8rem;
+}
+
+.celda-turno {
+    width: 76px;
+    padding: 6px 4px;
+    border-radius: 6px;
+    font-weight: 700;
+    text-align: center;
+    cursor: pointer;
+}
+
+.celda-turno.celda-vacia { background: #F4F8FB; color: #9AA4AD; font-weight: 400; }
+.celda-turno option { background: #fff; color: var(--gris-oscuro); }

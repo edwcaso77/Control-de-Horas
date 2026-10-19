@@ -11,7 +11,7 @@ from django.urls import reverse
 from django.views.decorators.http import require_POST
 
 from calendario.utils import contexto_mes
-from funcionarios.models import Area, Funcionario
+from funcionarios.models import Area, Cargo, Funcionario
 from funcionarios.permisos import administrador_requerido
 
 from .forms import TipoTurnoForm
@@ -23,9 +23,18 @@ def _area_elegida(datos):
     return Area.objects.filter(pk=area).first() if area.isdigit() else None
 
 
-def _funcionarios_activos(area):
+def _cargo_elegido(datos):
+    cargo = datos.get('cargo', '')
+    return Cargo.objects.filter(pk=cargo).first() if cargo.isdigit() else None
+
+
+def _funcionarios_activos(area, cargo=None):
     funcionarios = Funcionario.objects.filter(usuario__is_active=True).select_related('cargo', 'area')
-    return funcionarios.filter(area=area) if area else funcionarios
+    if area:
+        funcionarios = funcionarios.filter(area=area)
+    if cargo:
+        funcionarios = funcionarios.filter(cargo=cargo)
+    return funcionarios
 
 
 @administrador_requerido
@@ -152,43 +161,63 @@ def dia(request, anio, mes, dia):
 
 @administrador_requerido
 def varios(request):
-    """Asigna turnos en varios días elegidos en el cuadro del mes (?fechas=AAAA-MM-DD,AAAA-MM-DD…)."""
+    """Asigna turnos en varios días elegidos en el cuadro del mes (?fechas=AAAA-MM-DD,AAAA-MM-DD…).
+
+    Muestra una columna por día: cada celda es el turno de un funcionario en ese día y se cambia por separado.
+    """
     datos = request.POST if request.method == 'POST' else request.GET
     fechas = _fechas_elegidas(datos.get('fechas', ''))
     area = _area_elegida(datos)
+    cargo = _cargo_elegido(datos)
     if not fechas:
         messages.error(request, 'Seleccione al menos un día en el cuadro.')
         return redirect('turnos:cuadro')
-    funcionarios = list(_funcionarios_activos(area))
+    funcionarios = list(_funcionarios_activos(area, cargo))
 
     asignaciones = AsignacionTurno.objects.filter(funcionario__in=funcionarios, fecha__in=fechas).select_related('tipo_turno')
-    por_funcionario = defaultdict(dict)
-    for asignacion in asignaciones:
-        por_funcionario[asignacion.funcionario_id][asignacion.fecha] = asignacion.tipo_turno
+    actuales = {(a.funcionario_id, a.fecha): a.tipo_turno for a in asignaciones}
 
-    usados = {asignacion.tipo_turno_id for asignacion in asignaciones}
+    usados = {a.tipo_turno_id for a in asignaciones}
     tipos = list(TipoTurno.objects.filter(Q(activo=True) | Q(pk__in=usados)))
 
     if request.method == 'POST':
-        _guardar_turnos(request, funcionarios, fechas, tipos)
-        messages.success(request, f'Turnos guardados en {len(fechas)} día{"s" if len(fechas) != 1 else ""}.')
+        tipos_por_id = {str(t.pk): t for t in tipos}
+        cambios = 0
+        with transaction.atomic():
+            for funcionario in funcionarios:
+                for fecha in fechas:
+                    valor = request.POST.get(f'turno_{funcionario.pk}_{fecha.isoformat()}')
+                    actual = actuales.get((funcionario.pk, fecha))
+                    if valor is None:
+                        continue
+                    if valor == '':
+                        if actual:
+                            AsignacionTurno.objects.filter(funcionario=funcionario, fecha=fecha).delete()
+                            cambios += 1
+                    elif valor in tipos_por_id and (actual is None or str(actual.pk) != valor):
+                        AsignacionTurno.objects.update_or_create(
+                            funcionario=funcionario, fecha=fecha,
+                            defaults={'tipo_turno': tipos_por_id[valor], 'asignado_por': request.user},
+                        )
+                        cambios += 1
+        messages.success(request, f'Turnos guardados ({cambios} cambio{"s" if cambios != 1 else ""}).')
         return _volver_al_cuadro(fechas[0], area)
 
-    filas = []
-    for f in funcionarios:
-        turnos = [por_funcionario[f.pk].get(d) for d in fechas]
-        distintos = {t.pk if t else None for t in turnos}
-        # Si tiene el mismo turno en todos los días elegidos, ese aparece seleccionado; si no, "No cambiar".
-        comun = turnos[0] if len(distintos) == 1 and turnos[0] else None
-        filas.append({'funcionario': f, 'turnos': turnos, 'comun': comun})
-
+    filas = [
+        {
+            'funcionario': f,
+            'celdas': [{'fecha': d, 'turno': actuales.get((f.pk, d))} for d in fechas],
+        }
+        for f in funcionarios
+    ]
     return render(request, 'turnos/varios.html', {
         'fechas': fechas,
         'fechas_texto': ','.join(d.isoformat() for d in fechas),
         'filas': filas,
         'tipos': tipos,
         'area': area,
-        'no_cambiar': NO_CAMBIAR,
+        'cargo': cargo,
+        'cargos': Cargo.objects.filter(activo=True),
     })
 
 

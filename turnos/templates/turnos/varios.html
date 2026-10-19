@@ -16,41 +16,63 @@
     {% if area %}<span class="ayuda">· Área: {{ area }}</span>{% endif %}
 </div>
 
+<form method="get" class="filtros">
+    <input type="hidden" name="fechas" value="{{ fechas_texto }}">
+    {% if area %}<input type="hidden" name="area" value="{{ area.pk }}">{% endif %}
+    <label class="filtro-etiqueta" for="filtro-cargo">Cargo:</label>
+    <select id="filtro-cargo" name="cargo" onchange="this.form.submit()">
+        <option value="">Todos los cargos</option>
+        {% for c in cargos %}
+            <option value="{{ c.pk }}"{% if cargo and c.pk == cargo.pk %} selected{% endif %}>{{ c }}</option>
+        {% endfor %}
+    </select>
+</form>
+
 {% if not tipos %}
     <div class="mensaje mensaje-error">
         Todavía no hay turnos creados. Créelos primero en <a href="{% url 'turnos:tipos' %}">Tipos de turno</a>.
     </div>
 {% elif not filas %}
-    <div class="mensaje">No hay funcionarios activos{% if area %} en {{ area }}{% endif %}.</div>
+    <div class="mensaje">No hay funcionarios activos{% if cargo %} con el cargo {{ cargo }}{% endif %}{% if area %} en {{ area }}{% endif %}.</div>
 {% else %}
-<form method="post" class="formulario-turnos">
+<div class="leyenda">
+    {% for tipo in tipos %}
+        <span class="chip" style="background: {{ tipo.color }}; color: {{ tipo.color_texto }}">{{ tipo.abreviatura }}</span>
+        <span class="leyenda-texto">{{ tipo.nombre }} <small>{{ tipo.horario }}</small></span>
+    {% endfor %}
+</div>
+
+<form method="post" class="formulario-turnos" id="formulario-turnos">
     {% csrf_token %}
     <input type="hidden" name="fechas" value="{{ fechas_texto }}">
     {% if area %}<input type="hidden" name="area" value="{{ area.pk }}">{% endif %}
+    {% if cargo %}<input type="hidden" name="cargo" value="{{ cargo.pk }}">{% endif %}
 
     <div class="asignar-todos">
-        <label for="turno-todos">Asignar a todos:</label>
-        <select id="turno-todos">
+        <label for="turno-todos">Asignar a todos en todos los días:</label>
+        <select id="turno-todos" class="llenar" data-columna="todas">
             <option value="*">Elegir…</option>
-            <option value="{{ no_cambiar }}">No cambiar</option>
             <option value="">— Sin turno —</option>
             {% for tipo in tipos %}<option value="{{ tipo.pk }}">{{ tipo.abreviatura }} · {{ tipo.nombre }}</option>{% endfor %}
         </select>
     </div>
 
     <div class="tabla-contenedor">
-        <table class="tabla">
+        <table class="tabla tabla-turnos">
             <thead>
                 <tr>
                     <th>Funcionario</th>
                     <th>Cargo</th>
-                    <th>Turno para los días elegidos</th>
-                    <th>
-                        Turnos actuales
-                        <span class="dias-semana">
-                            {% for f in fechas %}<span title="{{ f|date:'l j \d\e F' }}">{{ f.day }}</span>{% endfor %}
-                        </span>
-                    </th>
+                    {% for f in fechas %}
+                        <th class="columna-dia">
+                            <span class="columna-fecha">{{ f|date:'D j'|capfirst }}</span>
+                            <select class="llenar llenar-columna" data-columna="{{ forloop.counter0 }}" aria-label="Asignar a todos el {{ f|date:'j \d\e F' }}">
+                                <option value="*">Todos…</option>
+                                <option value="">—</option>
+                                {% for tipo in tipos %}<option value="{{ tipo.pk }}">{{ tipo.abreviatura }}</option>{% endfor %}
+                            </select>
+                        </th>
+                    {% endfor %}
                 </tr>
             </thead>
             <tbody>
@@ -58,30 +80,27 @@
                     <tr>
                         <td>{{ fila.funcionario.apellidos }}, {{ fila.funcionario.nombres }}</td>
                         <td>{{ fila.funcionario.cargo|default:"—" }}</td>
-                        <td>
-                            <select name="turno_{{ fila.funcionario.pk }}" class="selector-turno" aria-label="Turno de {{ fila.funcionario.nombre_completo }}">
-                                <option value="{{ no_cambiar }}"{% if not fila.comun %} selected{% endif %}>No cambiar</option>
-                                <option value="">— Sin turno —</option>
-                                {% for tipo in tipos %}
-                                    <option value="{{ tipo.pk }}"{% if fila.comun and fila.comun.pk == tipo.pk %} selected{% endif %}>{{ tipo.abreviatura }} · {{ tipo.nombre }}</option>
-                                {% endfor %}
-                            </select>
-                        </td>
-                        <td>
-                            <span class="semana-turnos">
-                                {% for t in fila.turnos %}
-                                    {% if t %}<span class="chip chip-mini" style="background: {{ t.color }}; color: {{ t.color_texto }}" title="{{ t.nombre }}">{{ t.abreviatura }}</span>
-                                    {% else %}<span class="chip chip-mini chip-vacio">·</span>{% endif %}
-                                {% endfor %}
-                            </span>
-                        </td>
+                        {% for celda in fila.celdas %}
+                            <td class="celda-dia">
+                                <select name="turno_{{ fila.funcionario.pk }}_{{ celda.fecha|date:'Y-m-d' }}"
+                                        class="celda-turno" data-columna="{{ forloop.counter0 }}"
+                                        aria-label="{{ fila.funcionario.nombre_completo }}, {{ celda.fecha|date:'j \d\e F' }}">
+                                    <option value="">—</option>
+                                    {% for tipo in tipos %}
+                                        <option value="{{ tipo.pk }}" data-color="{{ tipo.color }}" data-texto="{{ tipo.color_texto }}"
+                                                title="{{ tipo.nombre }} {{ tipo.horario }}"{% if celda.turno and celda.turno.pk == tipo.pk %} selected{% endif %}>{{ tipo.abreviatura }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                        {% endfor %}
                     </tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
 
-    <p class="ayuda">"No cambiar" deja los turnos que ya tenga esa persona. "Sin turno" los quita en todos los días elegidos.</p>
+    <p class="ayuda">Haga clic en cada celda para elegir el turno de esa persona ese día. «—» quita el turno.
+        Las celdas que no toque quedan como están.</p>
 
     <div class="botones-formulario">
         <button type="submit" class="boton boton-primario">Guardar</button>
@@ -90,11 +109,34 @@
 </form>
 
 <script>
-    document.getElementById('turno-todos').addEventListener('change', function () {
-        if (this.value === '*') return;
-        document.querySelectorAll('.selector-turno').forEach(s => { s.value = this.value; });
-        this.value = '*';
+(function () {
+    const celdas = [...document.querySelectorAll('.celda-turno')];
+
+    // Cada celda toma el color de su turno.
+    function pintar(celda) {
+        const opcion = celda.selectedOptions[0];
+        celda.style.background = opcion && opcion.dataset.color ? opcion.dataset.color : '';
+        celda.style.color = opcion && opcion.dataset.texto ? opcion.dataset.texto : '';
+        celda.classList.toggle('celda-vacia', !celda.value);
+    }
+
+    celdas.forEach(celda => {
+        pintar(celda);
+        celda.addEventListener('change', () => pintar(celda));
     });
+
+    // "Asignar a todos" y "Todos…" de cada columna llenan las celdas correspondientes.
+    document.querySelectorAll('.llenar').forEach(selector => {
+        selector.addEventListener('change', () => {
+            if (selector.value === '*') return;
+            const columna = selector.dataset.columna;
+            celdas
+                .filter(c => columna === 'todas' || c.dataset.columna === columna)
+                .forEach(c => { c.value = selector.value; pintar(c); });
+            selector.value = '*';
+        });
+    });
+})();
 </script>
 {% endif %}
 {% endblock %}
