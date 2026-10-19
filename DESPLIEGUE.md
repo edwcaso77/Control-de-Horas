@@ -120,13 +120,22 @@ Cada vez que haya cambios nuevos en GitHub, en una consola **Bash** de PythonAny
 ```bash
 cd ~/Control-de-Horas
 source ~/.virtualenvs/control-horas/bin/activate
-git pull
+git fetch
+git reset --hard origin/main
 pip install -r requirements.txt
 python manage.py migrate
 python manage.py collectstatic --noinput
 ```
 
 Y luego **Web → Reload**.
+
+> El repositorio es **privado**: `git fetch` pedirá usuario y contraseña. La contraseña es un *token* de
+> GitHub (Settings → Developer settings → Personal access tokens → Fine-grained tokens, con permiso
+> *Contents: Read-only* sobre Control-de-Horas). `git reset --hard origin/main` deja el código igual al de
+> GitHub; no toca `.env` ni `db.sqlite3`, porque git no los sigue.
+
+> **Nunca** guarde archivos con datos reales (Excel, CSV, Word) dentro de la carpeta del proyecto.
+> El `.gitignore` los excluye, pero lo más seguro es tenerlos en otra carpeta.
 
 ## Copia de seguridad de la base de datos
 
