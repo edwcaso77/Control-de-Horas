@@ -21,3 +21,11 @@ staticfiles/
 Thumbs.db
 .vscode/
 .idea/
+
+# Archivos de Office (datos reales: nunca al repositorio)
+*.xlsx
+*.xls
+*.xlsm
+*.csv
+*.docx
+~$*
