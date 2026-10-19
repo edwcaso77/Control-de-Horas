@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+
+{% block titulo %}{{ titulo }}{% endblock %}
+
+{% block contenido %}
+<header class="encabezado-pagina">
+    <h1>{{ titulo }}</h1>
+</header>
+
+<form method="post" class="formulario" novalidate>
+    {% csrf_token %}
+    {% for error in form.non_field_errors %}
+        <div class="mensaje mensaje-error">{{ error }}</div>
+    {% endfor %}
+
+    <fieldset class="seccion-formulario">
+        <legend>Datos personales</legend>
+        <div class="rejilla">
+            {% include 'includes/campo.html' with campo=form.tipo_documento %}
+            {% include 'includes/campo.html' with campo=form.numero_documento %}
+            {% include 'includes/campo.html' with campo=form.nombres %}
+            {% include 'includes/campo.html' with campo=form.apellidos %}
+            {% include 'includes/campo.html' with campo=form.correo %}
+            {% include 'includes/campo.html' with campo=form.telefono %}
+        </div>
+    </fieldset>
+
+    <fieldset class="seccion-formulario">
+        <legend>Datos laborales</legend>
+        <div class="rejilla">
+            {% include 'includes/campo.html' with campo=form.cargo %}
+            {% include 'includes/campo.html' with campo=form.area %}
+            {% include 'includes/campo.html' with campo=form.fecha_ingreso %}
+        </div>
+        {% if not form.cargo.field.queryset or not form.area.field.queryset %}
+            <p class="ayuda">
+                ¿No aparece el cargo o el área? Créelos primero en
+                <a href="{% url 'funcionarios:catalogo' 'cargos' %}">Cargos</a> o
+                <a href="{% url 'funcionarios:catalogo' 'areas' %}">Áreas</a>.
+            </p>
+        {% endif %}
+    </fieldset>
+
+    <fieldset class="seccion-formulario">
+        <legend>Acceso al sistema</legend>
+        <p class="ayuda">El usuario para entrar es el número de documento.</p>
+        <div class="rejilla">
+            {% include 'includes/campo.html' with campo=form.password1 %}
+            {% include 'includes/campo.html' with campo=form.password2 %}
+        </div>
+        {% include 'includes/campo.html' with campo=form.es_administrador %}
+    </fieldset>
+
+    <div class="botones-formulario">
+        <button type="submit" class="boton boton-primario">Guardar</button>
+        <a href="{% url 'funcionarios:lista' %}" class="boton">Cancelar</a>
+    </div>
+</form>
+{% endblock %}

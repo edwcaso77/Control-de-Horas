@@ -1,0 +1,30 @@
+{% load static %}<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Ingresar · Control de Horas</title>
+    <link rel="stylesheet" href="{% static 'css/base.css' %}">
+</head>
+<body class="pagina-ingreso">
+<main class="tarjeta-ingreso">
+    <div class="marca marca-ingreso">
+        <span class="marca-icono" aria-hidden="true">+</span>
+        <span>Control de Horas</span>
+    </div>
+
+    <form method="post" class="formulario">
+        {% csrf_token %}
+        {% if form.non_field_errors %}
+            <div class="mensaje mensaje-error">
+                Número de documento o contraseña incorrectos.
+            </div>
+        {% endif %}
+        {% include 'includes/campo.html' with campo=form.username %}
+        {% include 'includes/campo.html' with campo=form.password %}
+        <input type="hidden" name="next" value="{{ next }}">
+        <button type="submit" class="boton boton-primario boton-ancho">Ingresar</button>
+    </form>
+</main>
+</body>
+</html>

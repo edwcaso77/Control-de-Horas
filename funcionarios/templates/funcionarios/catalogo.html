@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+
+{% block titulo %}{{ modelo.verbose_name_plural|capfirst }}{% endblock %}
+
+{% block contenido %}
+<header class="encabezado-pagina">
+    <h1>{{ modelo.verbose_name_plural|capfirst }}</h1>
+</header>
+
+<form method="post" class="formulario-en-linea" novalidate>
+    {% csrf_token %}
+    {% include 'includes/campo.html' with campo=form.nombre %}
+    <button type="submit" class="boton boton-verde" style="margin-top: 24px">+ Agregar {{ modelo.verbose_name }}</button>
+</form>
+
+<div class="tabla-contenedor">
+    <table class="tabla">
+        <thead>
+            <tr>
+                <th>Nombre</th>
+                <th>Estado</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for elemento in elementos %}
+                <tr class="{% if not elemento.activo %}fila-inactiva{% endif %}">
+                    <td>{{ elemento.nombre }}</td>
+                    <td>
+                        {% if elemento.activo %}<span class="etiqueta etiqueta-activo">Activo</span>
+                        {% else %}<span class="etiqueta etiqueta-inactivo">Inactivo</span>{% endif %}
+                    </td>
+                    <td>
+                        <div class="acciones">
+                            <a href="{% url 'funcionarios:catalogo_editar' tipo elemento.pk %}" class="boton boton-pequeno">Editar</a>
+                            <form method="post" action="{% url 'funcionarios:catalogo_estado' tipo elemento.pk %}">
+                                {% csrf_token %}
+                                {% if elemento.activo %}
+                                    <button type="submit" class="boton boton-pequeno boton-peligro">Desactivar</button>
+                                {% else %}
+                                    <button type="submit" class="boton boton-pequeno">Activar</button>
+                                {% endif %}
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="3" class="vacio">Todavía no hay {{ modelo.verbose_name_plural }} registrados.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

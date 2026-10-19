@@ -1,36 +1,10 @@
-/* Paleta institucional */
-:root {
-    --azul-claro: #6EC6D9;
-    --azul: #0770B8;
-    --verde: #66B32E;
-    --gris-oscuro: #333333;
-    --azul-marino: #1F2A5C;
-
-    --fondo: #FFFFFF;
-    --borde: #D6E4EC;
-    --fondo-fin-semana: #EAF7FA;  /* azul claro muy suave */
-    --texto-otro-mes: #B8BEC4;
-}
-
-* { box-sizing: border-box; }
-
-html, body {
-    height: 100%;
-    margin: 0;
-}
-
-body {
-    background: var(--fondo);
-    color: var(--gris-oscuro);
-    font-family: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
-}
-
+/* Calendario mensual. Los colores y la estructura general vienen de static/css/base.css */
 .calendario {
+    flex: 1;
     display: flex;
     flex-direction: column;
-    height: 100vh;
-    padding: 16px 24px 24px;
     gap: 12px;
+    min-height: 0;
 }
 
 /* Encabezado: mes a la izquierda, navegación al centro, año a la derecha */
@@ -144,11 +118,11 @@ body {
 }
 
 .dia.fin-de-semana {
-    background: var(--fondo-fin-semana);
+    background: #EAF7FA;  /* azul claro muy suave */
 }
 
 .dia.otro-mes .numero {
-    color: var(--texto-otro-mes);
+    color: #B8BEC4;
     font-weight: 400;
 }
 
@@ -171,7 +145,7 @@ body {
 
 /* Pantallas pequeñas */
 @media (max-width: 700px) {
-    .calendario { padding: 12px 16px; }
+    .calendario { min-height: 70vh; }
     .encabezado { grid-template-columns: 1fr auto; }
     .navegacion { grid-column: 1 / -1; grid-row: 2; flex-wrap: wrap; }
     .dia-semana { font-size: .75rem; padding: 6px 2px; }

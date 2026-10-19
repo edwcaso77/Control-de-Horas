@@ -1,11 +1,20 @@
 import datetime
 from unittest import mock
 
+from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
 
 
 class CalendarioMesTests(TestCase):
+    def setUp(self):
+        self.client.force_login(get_user_model().objects.create_user('prueba'))
+
+    def test_exige_iniciar_sesion(self):
+        self.client.logout()
+        respuesta = self._get()
+        self.assertRedirects(respuesta, f"{reverse('ingresar')}?next={reverse('calendario:mes')}")
+
     def _get(self, **params):
         return self.client.get(reverse('calendario:mes'), params)
 

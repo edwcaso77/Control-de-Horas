@@ -1,0 +1,349 @@
+/* Paleta institucional */
+:root {
+    --azul-claro: #6EC6D9;
+    --azul: #0770B8;
+    --verde: #66B32E;
+    --gris-oscuro: #333333;
+    --azul-marino: #1F2A5C;
+
+    --fondo: #FFFFFF;
+    --fondo-suave: #F4F8FB;
+    --borde: #D6E4EC;
+    --texto-suave: #6B7680;
+    --rojo: #C0392B;
+    --ancho-menu: 240px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+    height: 100%;
+    margin: 0;
+}
+
+body {
+    background: var(--fondo);
+    color: var(--gris-oscuro);
+    font-family: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+    font-size: 15px;
+}
+
+a { color: var(--azul); }
+
+/* ---------- Estructura: menú lateral + contenido ---------- */
+.aplicacion {
+    display: flex;
+    height: 100vh;
+}
+
+.menu-lateral {
+    flex: 0 0 var(--ancho-menu);
+    display: flex;
+    flex-direction: column;
+    background: var(--azul-marino);
+    color: #fff;
+    padding: 20px 0;
+}
+
+.marca {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 20px 20px;
+    font-size: 1.15rem;
+    font-weight: 700;
+}
+
+.marca-icono {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: var(--verde);
+    color: #fff;
+    font-size: 1.5rem;
+    line-height: 1;
+}
+
+.menu {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+.menu a {
+    padding: 10px 20px;
+    color: rgba(255, 255, 255, .85);
+    text-decoration: none;
+    border-left: 4px solid transparent;
+}
+
+.menu a:hover {
+    background: rgba(255, 255, 255, .08);
+    color: #fff;
+}
+
+.menu a.activo {
+    background: rgba(110, 198, 217, .18);
+    border-left-color: var(--azul-claro);
+    color: #fff;
+    font-weight: 600;
+}
+
+.menu-titulo {
+    margin: 18px 20px 6px;
+    font-size: .72rem;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--azul-claro);
+}
+
+.usuario {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin: 0 20px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(255, 255, 255, .15);
+}
+
+.usuario small { color: var(--azul-claro); }
+
+.boton-salir {
+    margin-top: 10px;
+    padding: 6px 0;
+    border: 0;
+    background: none;
+    color: rgba(255, 255, 255, .85);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.boton-salir:hover { color: #fff; text-decoration: underline; }
+
+.contenido {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    overflow: auto;
+    padding: 20px 28px;
+}
+
+/* ---------- Encabezado de página ---------- */
+.encabezado-pagina {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.encabezado-pagina h1 {
+    margin: 0;
+    font-size: 1.8rem;
+    font-weight: 600;
+    color: var(--azul-marino);
+}
+
+/* ---------- Mensajes ---------- */
+.mensajes { margin-bottom: 12px; }
+
+.mensaje {
+    padding: 10px 14px;
+    border-radius: 6px;
+    margin-bottom: 8px;
+    border-left: 4px solid var(--azul);
+    background: #EAF3FA;
+}
+
+.mensaje-success { border-left-color: var(--verde); background: #EEF7E8; }
+.mensaje-error { border-left-color: var(--rojo); background: #FBECEA; }
+
+/* ---------- Botones ---------- */
+.boton {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border: 1px solid var(--borde);
+    border-radius: 6px;
+    background: #fff;
+    color: var(--gris-oscuro);
+    font: inherit;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.boton:hover { filter: brightness(.97); }
+.boton-primario { background: var(--azul); border-color: var(--azul); color: #fff; }
+.boton-verde { background: var(--verde); border-color: var(--verde); color: #fff; }
+.boton-pequeno { padding: 4px 10px; font-size: .85rem; }
+.boton-peligro { color: var(--rojo); }
+.boton-ancho { width: 100%; }
+
+/* ---------- Filtros ---------- */
+.filtros {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.filtros input,
+.filtros select { width: auto; flex: 0 1 220px; min-width: 160px; }
+.filtros input[type="search"] { flex-basis: 320px; }
+
+/* ---------- Tablas ---------- */
+.tabla-contenedor { overflow-x: auto; }
+
+.tabla {
+    width: 100%;
+    border-collapse: collapse;
+    background: #fff;
+}
+
+.tabla th {
+    padding: 10px 12px;
+    background: var(--azul);
+    color: #fff;
+    font-weight: 600;
+    text-align: left;
+    white-space: nowrap;
+}
+
+.tabla td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--borde);
+    vertical-align: middle;
+}
+
+.tabla tbody tr:hover { background: var(--fondo-suave); }
+.tabla .acciones { display: flex; gap: 6px; justify-content: flex-end; }
+.tabla .acciones form { margin: 0; }
+.tabla .vacio { padding: 32px; text-align: center; color: var(--texto-suave); }
+.fila-inactiva td { color: var(--texto-suave); }
+
+.etiqueta {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: .8rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.etiqueta-activo { background: #EEF7E8; color: #3F7A17; }
+.etiqueta-inactivo { background: #EEEEEE; color: var(--texto-suave); }
+.etiqueta-admin { background: #E3F1FA; color: var(--azul); }
+
+/* ---------- Formularios ---------- */
+input[type="text"], input[type="email"], input[type="password"], input[type="date"],
+input[type="search"], input[type="tel"], select {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--borde);
+    border-radius: 6px;
+    background: #fff;
+    color: var(--gris-oscuro);
+    font: inherit;
+}
+
+input:focus, select:focus {
+    outline: 2px solid var(--azul-claro);
+    outline-offset: 0;
+    border-color: var(--azul-claro);
+}
+
+.formulario { max-width: 900px; }
+
+.seccion-formulario {
+    margin: 0 0 20px;
+    padding: 16px 20px 4px;
+    border: 1px solid var(--borde);
+    border-radius: 8px;
+}
+
+.seccion-formulario legend {
+    padding: 0 6px;
+    font-weight: 700;
+    color: var(--azul-marino);
+}
+
+.rejilla {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 0 20px;
+}
+
+.campo {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 14px;
+}
+
+.campo label { font-weight: 600; }
+.campo-casilla label { display: flex; align-items: center; gap: 8px; font-weight: 600; cursor: pointer; }
+.campo-casilla input { width: 18px; height: 18px; }
+.requerido { color: var(--rojo); }
+.ayuda { color: var(--texto-suave); }
+.error { color: var(--rojo); }
+.con-error input, .con-error select { border-color: var(--rojo); }
+
+.botones-formulario { display: flex; gap: 10px; }
+
+.formulario-en-linea {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.formulario-en-linea .campo { flex: 1; min-width: 220px; max-width: 420px; margin: 0; }
+
+/* ---------- Inicio de sesión ---------- */
+.pagina-ingreso {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: linear-gradient(135deg, var(--azul-marino), var(--azul));
+}
+
+.tarjeta-ingreso {
+    width: 100%;
+    max-width: 380px;
+    padding: 32px 28px;
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, .25);
+}
+
+.marca-ingreso {
+    justify-content: center;
+    padding: 0 0 24px;
+    color: var(--azul-marino);
+    font-size: 1.4rem;
+}
+
+/* ---------- Pantallas pequeñas: el menú pasa arriba ---------- */
+@media (max-width: 800px) {
+    .aplicacion { flex-direction: column; height: auto; min-height: 100vh; }
+    .menu-lateral { flex: none; padding: 12px 0; }
+    .marca { padding-bottom: 8px; }
+    .menu { flex-direction: row; flex-wrap: wrap; }
+    .menu a { border-left: 0; border-bottom: 3px solid transparent; padding: 8px 14px; }
+    .menu a.activo { border-bottom-color: var(--azul-claro); }
+    .menu-titulo { display: none; }
+    .usuario { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 8px; padding-top: 8px; }
+    .boton-salir { margin: 0 0 0 auto; }
+    .contenido { padding: 16px; overflow: visible; }
+}

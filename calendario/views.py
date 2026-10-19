@@ -1,5 +1,6 @@
 import calendar
 
+from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
 from django.utils import timezone
 
@@ -22,6 +23,7 @@ def _entero(valor, por_defecto, minimo, maximo):
     return numero if minimo <= numero <= maximo else por_defecto
 
 
+@login_required
 def calendario_mes(request):
     hoy = timezone.localdate()
     anio = _entero(request.GET.get('anio'), hoy.year, ANIO_MIN, ANIO_MAX)

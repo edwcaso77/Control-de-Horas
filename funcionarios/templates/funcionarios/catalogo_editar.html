@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Editar {{ modelo.verbose_name }}{% endblock %}
+
+{% block contenido %}
+<header class="encabezado-pagina">
+    <h1>Editar {{ modelo.verbose_name }}: {{ elemento.nombre }}</h1>
+</header>
+
+<form method="post" class="formulario" novalidate>
+    {% csrf_token %}
+    <div style="max-width: 420px">
+        {% include 'includes/campo.html' with campo=form.nombre %}
+    </div>
+    <div class="botones-formulario">
+        <button type="submit" class="boton boton-primario">Guardar</button>
+        <a href="{% url 'funcionarios:catalogo' tipo %}" class="boton">Cancelar</a>
+    </div>
+</form>
+{% endblock %}

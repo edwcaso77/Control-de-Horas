@@ -1,0 +1,57 @@
+{% load static %}<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block titulo %}Inicio{% endblock %} · Control de Horas</title>
+    <link rel="stylesheet" href="{% static 'css/base.css' %}">
+    {% block estilos %}{% endblock %}
+</head>
+<body>
+<div class="aplicacion">
+    {% with app=request.resolver_match.app_name vista=request.resolver_match.url_name tipo=request.resolver_match.kwargs.tipo %}
+    <aside class="menu-lateral">
+        <div class="marca">
+            <span class="marca-icono" aria-hidden="true">+</span>
+            <span>Control de Horas</span>
+        </div>
+
+        <nav class="menu">
+            <a href="{% url 'calendario:mes' %}" class="{% if app == 'calendario' %}activo{% endif %}">Calendario</a>
+
+            {% if es_admin %}
+                <span class="menu-titulo">Administración</span>
+                <a href="{% url 'funcionarios:lista' %}"
+                   class="{% if app == 'funcionarios' and not tipo %}activo{% endif %}">Funcionarios</a>
+                <a href="{% url 'funcionarios:catalogo' 'cargos' %}"
+                   class="{% if tipo == 'cargos' %}activo{% endif %}">Cargos</a>
+                <a href="{% url 'funcionarios:catalogo' 'areas' %}"
+                   class="{% if tipo == 'areas' %}activo{% endif %}">Áreas</a>
+            {% endif %}
+        </nav>
+
+        <div class="usuario">
+            <strong>{{ request.user.get_full_name|default:request.user.username }}</strong>
+            <small>{% if es_admin %}Administrador{% else %}Funcionario{% endif %}</small>
+            <form method="post" action="{% url 'salir' %}">
+                {% csrf_token %}
+                <button type="submit" class="boton-salir">Cerrar sesión</button>
+            </form>
+        </div>
+    </aside>
+    {% endwith %}
+
+    <main class="contenido">
+        {% if messages %}
+            <div class="mensajes">
+                {% for mensaje in messages %}
+                    <div class="mensaje mensaje-{{ mensaje.tags }}">{{ mensaje }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        {% block contenido %}{% endblock %}
+    </main>
+</div>
+</body>
+</html>

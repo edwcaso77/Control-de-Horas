@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Funcionarios{% endblock %}
+
+{% block contenido %}
+<header class="encabezado-pagina">
+    <h1>Funcionarios</h1>
+    <a href="{% url 'funcionarios:crear' %}" class="boton boton-verde">+ Nuevo funcionario</a>
+</header>
+
+<form method="get" class="filtros">
+    <input type="search" name="q" value="{{ busqueda }}" placeholder="Buscar por nombre o documento" aria-label="Buscar">
+    <select name="area" aria-label="Área" onchange="this.form.submit()">
+        <option value="">Todas las áreas</option>
+        {% for a in areas %}
+            <option value="{{ a.pk }}"{% if a.pk|stringformat:"s" == area %} selected{% endif %}>{{ a }}</option>
+        {% endfor %}
+    </select>
+    <select name="estado" aria-label="Estado" onchange="this.form.submit()">
+        <option value="activos"{% if estado == 'activos' %} selected{% endif %}>Activos</option>
+        <option value="inactivos"{% if estado == 'inactivos' %} selected{% endif %}>Inactivos</option>
+        <option value="todos"{% if estado == 'todos' %} selected{% endif %}>Todos</option>
+    </select>
+    <button type="submit" class="boton">Buscar</button>
+</form>
+
+<div class="tabla-contenedor">
+    <table class="tabla">
+        <thead>
+            <tr>
+                <th>Documento</th>
+                <th>Nombre</th>
+                <th>Cargo</th>
+                <th>Área</th>
+                <th>Rol</th>
+                <th>Estado</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for f in funcionarios %}
+                <tr class="{% if not f.activo %}fila-inactiva{% endif %}">
+                    <td>{{ f.tipo_documento }} {{ f.numero_documento }}</td>
+                    <td>{{ f.apellidos }}, {{ f.nombres }}</td>
+                    <td>{{ f.cargo|default:"—" }}</td>
+                    <td>{{ f.area|default:"—" }}</td>
+                    <td>
+                        {% if f.es_administrador %}<span class="etiqueta etiqueta-admin">Administrador</span>
+                        {% else %}Funcionario{% endif %}
+                    </td>
+                    <td>
+                        {% if f.activo %}<span class="etiqueta etiqueta-activo">Activo</span>
+                        {% else %}<span class="etiqueta etiqueta-inactivo">Inactivo</span>{% endif %}
+                    </td>
+                    <td>
+                        <div class="acciones">
+                            <a href="{% url 'funcionarios:editar' f.pk %}" class="boton boton-pequeno">Editar</a>
+                            {% if f.usuario_id != request.user.pk %}
+                                <form method="post" action="{% url 'funcionarios:estado' f.pk %}">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="siguiente" value="{{ request.get_full_path }}">
+                                    {% if f.activo %}
+                                        <button type="submit" class="boton boton-pequeno boton-peligro"
+                                                onclick="return confirm('¿Desactivar a {{ f.nombre_completo|escapejs }}? Ya no podrá entrar al sistema.')">Desactivar</button>
+                                    {% else %}
+                                        <button type="submit" class="boton boton-pequeno">Activar</button>
+                                    {% endif %}
+                                </form>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="7" class="vacio">No hay funcionarios que coincidan con la búsqueda.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

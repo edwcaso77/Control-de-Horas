@@ -4,7 +4,11 @@ Sistema web para gestionar el cuadro de turnos y calcular las horas extra para l
 
 ## Estado actual
 
+- Inicio de sesión con número de documento y contraseña.
+- Menú lateral con opciones según el rol (administrador o funcionario).
 - Calendario mensual con selector de mes y año.
+- Registro de funcionarios: crear, editar, activar y desactivar, con su usuario y contraseña.
+- Listas de cargos y áreas que maneja el administrador.
 
 ## Requisitos
 
@@ -16,8 +20,12 @@ Sistema web para gestionar el cuadro de turnos y calcular las horas extra para l
 py -m venv .venv
 .venv\Scripts\python.exe -m pip install -r requirements.txt
 .venv\Scripts\python.exe manage.py migrate
+.venv\Scripts\python.exe manage.py crear_administrador
 .venv\Scripts\python.exe manage.py runserver
 ```
+
+El comando `crear_administrador` se usa una sola vez para crear el primer administrador.
+Después, los demás funcionarios se registran desde el sistema.
 
 Luego abrir http://localhost:8000
 
