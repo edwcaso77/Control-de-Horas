@@ -85,7 +85,8 @@
     flex: 1;
     display: grid;
     grid-template-columns: repeat(7, 1fr);
-    grid-template-rows: auto repeat(var(--semanas), 1fr);
+    /* Cada semana ocupa al menos lo que necesita su contenido y reparte el espacio sobrante. */
+    grid-template-rows: auto repeat(var(--semanas), minmax(min-content, 1fr));
     border-top: 1px solid var(--borde);
     border-left: 1px solid var(--borde);
     min-height: 0;
@@ -109,7 +110,7 @@
     padding: 8px 10px;
     border-right: 1px solid var(--borde);
     border-bottom: 1px solid var(--borde);
-    min-height: 0;
+    min-height: 64px;
 }
 
 .dia .numero {

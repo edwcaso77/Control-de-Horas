@@ -28,6 +28,19 @@
         {% endfor %}
         <span class="leyenda-ayuda">Clic en un día para asignar sus turnos · marque la casilla para elegir varios días · clic en «Lunes», «Martes»… para elegir todos esos días del mes.</span>
     </div>
+
+    {% if modo_local %}
+        <form method="post" action="{% url 'turnos:borrar_agenda' %}" class="herramientas-prueba"
+              onsubmit="return confirm('¿Eliminar TODA la agenda? Se borrarán los {{ total_turnos }} turnos asignados, de todas las áreas y meses. Esta acción no se puede deshacer.')">
+            {% csrf_token %}
+            <input type="hidden" name="anio" value="{{ anio }}">
+            <input type="hidden" name="mes" value="{{ mes }}">
+            {% if area %}<input type="hidden" name="area" value="{{ area.pk }}">{% endif %}
+            <span class="herramientas-titulo">Solo en local</span>
+            <span>{{ total_turnos }} turno{{ total_turnos|pluralize }} asignado{{ total_turnos|pluralize }} en total</span>
+            <button type="submit" class="boton boton-pequeno boton-borrar"{% if not total_turnos %} disabled{% endif %}>Eliminar toda la agenda</button>
+        </form>
+    {% endif %}
 {% endblock %}
 
 {% block dia %}

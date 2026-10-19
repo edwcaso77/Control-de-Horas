@@ -1,9 +1,9 @@
 import datetime
 
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 
-from funcionarios.models import Area, Cargo
+from funcionarios.models import Area, Cargo, Funcionario
 from funcionarios.tests import crear_funcionario
 
 from .models import AsignacionTurno, TipoTurno
@@ -212,3 +212,32 @@ class VariosDiasTests(DatosCuadroMixin, TestCase):
         respuesta = self.client.get(reverse('turnos:cuadro'), {'anio': 2026, 'mes': 10})
         self.assertContains(respuesta, 'class="casilla-dia" value="2026-10-20"')
         self.assertContains(respuesta, 'id="barra-seleccion"')
+
+
+class BorrarAgendaTests(DatosCuadroMixin, TestCase):
+    def setUp(self):
+        super().setUp()
+        AsignacionTurno.objects.create(funcionario=self.ana, fecha=self.fecha, tipo_turno=self.manana)
+        AsignacionTurno.objects.create(funcionario=self.luis, fecha=self.fecha, tipo_turno=self.noche)
+
+    def test_en_produccion_no_aparece_ni_funciona(self):
+        # Las pruebas corren con DEBUG=False, igual que el sitio publicado.
+        self.assertNotContains(self.client.get(reverse('turnos:cuadro')), 'Eliminar toda la agenda')
+        self.assertEqual(self.client.post(reverse('turnos:borrar_agenda')).status_code, 404)
+        self.assertEqual(AsignacionTurno.objects.count(), 2)
+
+    @override_settings(DEBUG=True)
+    def test_en_local_borra_solo_los_turnos(self):
+        self.assertContains(self.client.get(reverse('turnos:cuadro')), 'Eliminar toda la agenda')
+        respuesta = self.client.post(reverse('turnos:borrar_agenda'), {'anio': 2026, 'mes': 10})
+        self.assertRedirects(respuesta, f"{reverse('turnos:cuadro')}?anio=2026&mes=10")
+        self.assertEqual(AsignacionTurno.objects.count(), 0)
+        self.assertEqual(TipoTurno.objects.count(), 2)
+        self.assertTrue(Funcionario.objects.filter(pk=self.ana.pk).exists())
+
+    @override_settings(DEBUG=True)
+    def test_solo_administrador_y_por_post(self):
+        self.assertEqual(self.client.get(reverse('turnos:borrar_agenda')).status_code, 405)
+        self.client.force_login(self.ana.usuario)
+        self.assertEqual(self.client.post(reverse('turnos:borrar_agenda')).status_code, 403)
+        self.assertEqual(AsignacionTurno.objects.count(), 2)

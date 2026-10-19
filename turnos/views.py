@@ -2,6 +2,7 @@ import datetime
 from collections import defaultdict
 from urllib.parse import urlencode
 
+from django.conf import settings
 from django.contrib import messages
 from django.db import transaction
 from django.db.models import Count, Q
@@ -64,8 +65,23 @@ def cuadro(request):
         'area': area,
         'parametros_extra': f'&area={area.pk}' if area else '',
         'tipos_activos': TipoTurno.objects.filter(activo=True),
+        # Herramientas de prueba: solo en el computador de desarrollo, nunca en el sitio publicado.
+        'modo_local': settings.DEBUG,
+        'total_turnos': AsignacionTurno.objects.count() if settings.DEBUG else 0,
     })
     return render(request, 'turnos/cuadro.html', contexto)
+
+
+@require_POST
+@administrador_requerido
+def borrar_agenda(request):
+    """Elimina todos los turnos asignados. Solo existe en local (DEBUG=True), para hacer pruebas."""
+    if not settings.DEBUG:
+        raise Http404
+    borrados, _ = AsignacionTurno.objects.all().delete()
+    messages.success(request, f'Agenda eliminada: {borrados} turno{"s" if borrados != 1 else ""} borrado{"s" if borrados != 1 else ""}.')
+    parametros = {k: v for k in ('anio', 'mes', 'area') if (v := request.POST.get(k, '')).isdigit()}
+    return redirect(f"{reverse('turnos:cuadro')}?{urlencode(parametros)}" if parametros else reverse('turnos:cuadro'))
 
 
 NO_CAMBIAR = '-'
