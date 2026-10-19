@@ -13,8 +13,18 @@ https://docs.djangoproject.com/en/6.1/ref/settings/
 import os
 from pathlib import Path
 
+from django.core.exceptions import ImproperlyConfigured
+from dotenv import load_dotenv
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# En el servidor, la configuración se lee del archivo .env (que no se sube a GitHub).
+load_dotenv(BASE_DIR / '.env')
+
+
+def _lista(variable, por_defecto=''):
+    return [valor.strip() for valor in os.environ.get(variable, por_defecto).split(',') if valor.strip()]
 
 
 # Quick-start development settings - unsuitable for production
@@ -27,7 +37,19 @@ SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-solo-para-desa
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = []
+if not DEBUG and SECRET_KEY.startswith('django-insecure'):
+    raise ImproperlyConfigured('En producción debe definir DJANGO_SECRET_KEY en el archivo .env')
+
+# Direcciones desde las que se puede abrir el sistema, separadas por coma.
+ALLOWED_HOSTS = _lista('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1')
+CSRF_TRUSTED_ORIGINS = [f'https://{host}' for host in ALLOWED_HOSTS if host not in ('localhost', '127.0.0.1')]
+
+if not DEBUG:
+    # El servidor atiende por HTTPS: las cookies de sesión solo viajan cifradas.
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SECURE_HSTS_SECONDS = int(os.environ.get('DJANGO_HSTS_SECONDS', '3600'))
 
 
 # Application definition
@@ -121,6 +143,8 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
+# Carpeta donde collectstatic reúne el CSS para que el servidor lo entregue.
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 # Inicio de sesión
 LOGIN_URL = 'ingresar'

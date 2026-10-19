@@ -35,9 +35,14 @@ Luego abrir http://localhost:8000
 .venv\Scripts\python.exe manage.py test
 ```
 
-## Producción
+## Producción (variables del archivo .env)
 
 Definir estas variables de entorno:
 
 - `DJANGO_SECRET_KEY`: clave secreta propia y larga.
 - `DJANGO_DEBUG=False`
+- `DJANGO_ALLOWED_HOSTS`: dirección del sitio, por ejemplo `edwcaso77.pythonanywhere.com`.
+
+## Publicar en internet
+
+Ver [DESPLIEGUE.md](DESPLIEGUE.md) para subirlo a PythonAnywhere.
