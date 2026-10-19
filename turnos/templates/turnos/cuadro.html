@@ -26,11 +26,15 @@
                 Primero cree los turnos en <a href="{% url 'turnos:tipos' %}">Tipos de turno</a>.
             </span>
         {% endfor %}
-        <span class="leyenda-ayuda">Haga clic en un día para asignar los turnos.</span>
+        <span class="leyenda-ayuda">Clic en un día para asignar sus turnos · marque la casilla para elegir varios días · clic en «Lunes», «Martes»… para elegir todos esos días del mes.</span>
     </div>
 {% endblock %}
 
 {% block dia %}
+    <label class="seleccion-dia" title="Seleccionar este día">
+        <input type="checkbox" class="casilla-dia" value="{{ dia.fecha|date:'Y-m-d' }}"{% if dia.otro_mes %} data-otro-mes{% endif %}
+               aria-label="Seleccionar el {{ dia.fecha|date:'j \d\e F' }}">
+    </label>
     <a class="dia-enlace" href="{% url 'turnos:dia' dia.fecha.year dia.fecha.month dia.fecha.day %}{% if area %}?area={{ area.pk }}{% endif %}"
        aria-label="Asignar turnos del {{ dia.fecha|date:'j \d\e F' }}"></a>
     <div class="resumen-dia">
@@ -39,4 +43,52 @@
                   title="{{ item.tipo.nombre }}: {{ item.total }}">{{ item.tipo.abreviatura }} {{ item.total }}</span>
         {% endfor %}
     </div>
+{% endblock %}
+
+{% block extra_contenido %}
+<div class="barra-seleccion" id="barra-seleccion" hidden>
+    <span id="cantidad-seleccion"></span>
+    <a class="boton boton-primario" id="asignar-seleccion" href="#">Asignar turnos</a>
+    <button type="button" class="boton" id="limpiar-seleccion">Limpiar</button>
+</div>
+
+<script>
+(function () {
+    const casillas = [...document.querySelectorAll('.casilla-dia')];
+    const barra = document.getElementById('barra-seleccion');
+    const enlace = document.getElementById('asignar-seleccion');
+    const urlBase = "{% url 'turnos:varios' %}";
+    const area = "{% if area %}{{ area.pk }}{% endif %}";
+
+    function actualizar() {
+        const elegidas = casillas.filter(c => c.checked);
+        casillas.forEach(c => c.closest('.dia').classList.toggle('seleccionado', c.checked));
+        barra.hidden = elegidas.length === 0;
+        document.getElementById('cantidad-seleccion').textContent =
+            elegidas.length + (elegidas.length === 1 ? ' día seleccionado' : ' días seleccionados');
+        const parametros = new URLSearchParams({fechas: elegidas.map(c => c.value).join(',')});
+        if (area) parametros.set('area', area);
+        enlace.href = urlBase + '?' + parametros.toString();
+    }
+
+    casillas.forEach(c => c.addEventListener('change', actualizar));
+
+    // Clic en el nombre del día de la semana: marca (o desmarca) ese día en todas las semanas del mes.
+    document.querySelectorAll('.dia-semana').forEach((titulo, columna) => {
+        titulo.classList.add('dia-semana-elegible');
+        titulo.title = 'Seleccionar todos los ' + titulo.textContent.trim().toLowerCase() + ' del mes';
+        titulo.addEventListener('click', () => {
+            const delMes = casillas.filter((c, i) => i % 7 === columna && !c.hasAttribute('data-otro-mes'));
+            const marcar = !delMes.every(c => c.checked);
+            delMes.forEach(c => { c.checked = marcar; });
+            actualizar();
+        });
+    });
+
+    document.getElementById('limpiar-seleccion').addEventListener('click', () => {
+        casillas.forEach(c => { c.checked = false; });
+        actualizar();
+    });
+})();
+</script>
 {% endblock %}

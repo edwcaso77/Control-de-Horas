@@ -7,6 +7,7 @@ app_name = 'turnos'
 urlpatterns = [
     path('', views.cuadro, name='cuadro'),
     path('dia/<int:anio>/<int:mes>/<int:dia>/', views.dia, name='dia'),
+    path('varios-dias/', views.varios, name='varios'),
     path('tipos/', views.tipos, name='tipos'),
     path('tipos/nuevo/', views.tipo_crear, name='tipo_crear'),
     path('tipos/<int:pk>/editar/', views.tipo_editar, name='tipo_editar'),

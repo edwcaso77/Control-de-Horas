@@ -23,7 +23,9 @@ class TipoTurnoTests(TestCase):
         self.assertEqual(TipoTurno(color='#6EC6D9').color_texto, '#333333')
 
 
-class CuadroTurnoTests(TestCase):
+class DatosCuadroMixin:
+    """Administrador, Ana (Urgencias), Luis (Hospitalización) y los turnos Mañana y Noche."""
+
     def setUp(self):
         self.admin = crear_funcionario('1000', es_administrador=True)
         self.client.force_login(self.admin.usuario)
@@ -39,6 +41,8 @@ class CuadroTurnoTests(TestCase):
         )
         self.fecha = datetime.date(2026, 10, 21)  # miércoles
 
+
+class CuadroTurnoTests(DatosCuadroMixin, TestCase):
     def _url_dia(self, fecha=None):
         fecha = fecha or self.fecha
         return reverse('turnos:dia', args=[fecha.year, fecha.month, fecha.day])
@@ -123,3 +127,59 @@ class CuadroTurnoTests(TestCase):
         self.assertContains(self.client.get(reverse('calendario:mes')), 'Cuadro de turno')
         self.client.force_login(self.ana.usuario)
         self.assertNotContains(self.client.get(reverse('calendario:mes')), 'Cuadro de turno')
+
+
+class VariosDiasTests(DatosCuadroMixin, TestCase):
+    fechas = [datetime.date(2026, 10, 20), datetime.date(2026, 10, 22), datetime.date(2026, 10, 27)]
+
+    def _url(self):
+        return reverse('turnos:varios')
+
+    def _texto(self, fechas=None):
+        return ','.join(d.isoformat() for d in (fechas or self.fechas))
+
+    def test_asignar_el_mismo_turno_a_varios_dias(self):
+        respuesta = self.client.post(self._url(), {
+            'fechas': self._texto(), f'turno_{self.ana.pk}': self.manana.pk, f'turno_{self.luis.pk}': '-',
+        })
+        self.assertRedirects(respuesta, f"{reverse('turnos:cuadro')}?anio=2026&mes=10")
+        fechas_ana = list(AsignacionTurno.objects.filter(funcionario=self.ana).values_list('fecha', flat=True))
+        self.assertEqual(fechas_ana, self.fechas)
+        self.assertFalse(AsignacionTurno.objects.filter(funcionario=self.luis).exists())
+
+    def test_no_cambiar_conserva_y_sin_turno_quita(self):
+        for d in self.fechas:
+            AsignacionTurno.objects.create(funcionario=self.ana, fecha=d, tipo_turno=self.noche)
+            AsignacionTurno.objects.create(funcionario=self.luis, fecha=d, tipo_turno=self.noche)
+        self.client.post(self._url(), {'fechas': self._texto(), f'turno_{self.ana.pk}': '-', f'turno_{self.luis.pk}': ''})
+        self.assertEqual(AsignacionTurno.objects.filter(funcionario=self.ana).count(), 3)
+        self.assertFalse(AsignacionTurno.objects.filter(funcionario=self.luis).exists())
+
+    def test_formulario_muestra_turno_comun_o_no_cambiar(self):
+        for d in self.fechas:
+            AsignacionTurno.objects.create(funcionario=self.ana, fecha=d, tipo_turno=self.noche)
+        AsignacionTurno.objects.create(funcionario=self.luis, fecha=self.fechas[0], tipo_turno=self.manana)
+        filas = {f['funcionario'].pk: f for f in self.client.get(self._url(), {'fechas': self._texto()}).context['filas']}
+        self.assertEqual(filas[self.ana.pk]['comun'], self.noche)
+        self.assertIsNone(filas[self.luis.pk]['comun'])
+        self.assertEqual(filas[self.luis.pk]['turnos'], [self.manana, None, None])
+
+    def test_fechas_invalidas_o_vacias(self):
+        respuesta = self.client.get(self._url(), {'fechas': 'hola,2026-13-40'})
+        self.assertRedirects(respuesta, reverse('turnos:cuadro'))
+        contexto = self.client.get(self._url(), {'fechas': '2026-10-22,basura,2026-10-20,2026-10-22'}).context
+        self.assertEqual(contexto['fechas'], [datetime.date(2026, 10, 20), datetime.date(2026, 10, 22)])
+
+    def test_respeta_el_area(self):
+        AsignacionTurno.objects.create(funcionario=self.luis, fecha=self.fechas[0], tipo_turno=self.noche)
+        self.client.post(self._url(), {'fechas': self._texto(), 'area': self.urgencias.pk, f'turno_{self.luis.pk}': ''})
+        self.assertTrue(AsignacionTurno.objects.filter(funcionario=self.luis).exists())
+
+    def test_solo_administrador_en_varios_dias(self):
+        self.client.force_login(self.ana.usuario)
+        self.assertEqual(self.client.get(self._url(), {'fechas': self._texto()}).status_code, 403)
+
+    def test_cuadro_tiene_casillas_y_barra(self):
+        respuesta = self.client.get(reverse('turnos:cuadro'), {'anio': 2026, 'mes': 10})
+        self.assertContains(respuesta, 'class="casilla-dia" value="2026-10-20"')
+        self.assertContains(respuesta, 'id="barra-seleccion"')

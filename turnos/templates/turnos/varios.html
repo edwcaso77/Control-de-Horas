@@ -1,0 +1,100 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block titulo %}Turnos de {{ fechas|length }} días{% endblock %}
+
+{% block estilos %}<link rel="stylesheet" href="{% static 'turnos/turnos.css' %}">{% endblock %}
+
+{% block contenido %}
+<header class="encabezado-pagina">
+    <h1>Asignar turnos a {{ fechas|length }} día{{ fechas|length|pluralize }}</h1>
+    <a class="boton" href="{% url 'turnos:cuadro' %}?anio={{ fechas.0.year }}&mes={{ fechas.0.month }}{% if area %}&area={{ area.pk }}{% endif %}">Volver al mes</a>
+</header>
+
+<div class="fechas-elegidas">
+    {% for f in fechas %}<span class="fecha-elegida">{{ f|date:'D j M'|capfirst }}</span>{% endfor %}
+    {% if area %}<span class="ayuda">· Área: {{ area }}</span>{% endif %}
+</div>
+
+{% if not tipos %}
+    <div class="mensaje mensaje-error">
+        Todavía no hay turnos creados. Créelos primero en <a href="{% url 'turnos:tipos' %}">Tipos de turno</a>.
+    </div>
+{% elif not filas %}
+    <div class="mensaje">No hay funcionarios activos{% if area %} en {{ area }}{% endif %}.</div>
+{% else %}
+<form method="post" class="formulario-turnos">
+    {% csrf_token %}
+    <input type="hidden" name="fechas" value="{{ fechas_texto }}">
+    {% if area %}<input type="hidden" name="area" value="{{ area.pk }}">{% endif %}
+
+    <div class="asignar-todos">
+        <label for="turno-todos">Asignar a todos:</label>
+        <select id="turno-todos">
+            <option value="*">Elegir…</option>
+            <option value="{{ no_cambiar }}">No cambiar</option>
+            <option value="">— Sin turno —</option>
+            {% for tipo in tipos %}<option value="{{ tipo.pk }}">{{ tipo.abreviatura }} · {{ tipo.nombre }}</option>{% endfor %}
+        </select>
+    </div>
+
+    <div class="tabla-contenedor">
+        <table class="tabla">
+            <thead>
+                <tr>
+                    <th>Funcionario</th>
+                    <th>Cargo</th>
+                    <th>Turno para los días elegidos</th>
+                    <th>
+                        Turnos actuales
+                        <span class="dias-semana">
+                            {% for f in fechas %}<span title="{{ f|date:'l j \d\e F' }}">{{ f.day }}</span>{% endfor %}
+                        </span>
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for fila in filas %}
+                    <tr>
+                        <td>{{ fila.funcionario.apellidos }}, {{ fila.funcionario.nombres }}</td>
+                        <td>{{ fila.funcionario.cargo|default:"—" }}</td>
+                        <td>
+                            <select name="turno_{{ fila.funcionario.pk }}" class="selector-turno" aria-label="Turno de {{ fila.funcionario.nombre_completo }}">
+                                <option value="{{ no_cambiar }}"{% if not fila.comun %} selected{% endif %}>No cambiar</option>
+                                <option value="">— Sin turno —</option>
+                                {% for tipo in tipos %}
+                                    <option value="{{ tipo.pk }}"{% if fila.comun and fila.comun.pk == tipo.pk %} selected{% endif %}>{{ tipo.abreviatura }} · {{ tipo.nombre }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td>
+                            <span class="semana-turnos">
+                                {% for t in fila.turnos %}
+                                    {% if t %}<span class="chip chip-mini" style="background: {{ t.color }}; color: {{ t.color_texto }}" title="{{ t.nombre }}">{{ t.abreviatura }}</span>
+                                    {% else %}<span class="chip chip-mini chip-vacio">·</span>{% endif %}
+                                {% endfor %}
+                            </span>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <p class="ayuda">"No cambiar" deja los turnos que ya tenga esa persona. "Sin turno" los quita en todos los días elegidos.</p>
+
+    <div class="botones-formulario">
+        <button type="submit" class="boton boton-primario">Guardar</button>
+        <a class="boton" href="{% url 'turnos:cuadro' %}?anio={{ fechas.0.year }}&mes={{ fechas.0.month }}{% if area %}&area={{ area.pk }}{% endif %}">Cancelar</a>
+    </div>
+</form>
+
+<script>
+    document.getElementById('turno-todos').addEventListener('change', function () {
+        if (this.value === '*') return;
+        document.querySelectorAll('.selector-turno').forEach(s => { s.value = this.value; });
+        this.value = '*';
+    });
+</script>
+{% endif %}
+{% endblock %}

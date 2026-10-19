@@ -10,7 +10,8 @@ Sistema web para gestionar el cuadro de turnos y calcular las horas extra para l
 - Registro de funcionarios: crear, editar, activar y desactivar, con su usuario y contraseña.
 - Listas de cargos y áreas que maneja el administrador.
 - Cuadro de turno (administrador): tipos de turno con horario y color, y asignación
-  de turnos por día o por semana desde el calendario, con filtro por área.
+  de turnos por día, por semana o en varios días seleccionados desde el calendario,
+  con filtro por área.
 
 ## Requisitos
 

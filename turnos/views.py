@@ -59,6 +59,47 @@ def cuadro(request):
     return render(request, 'turnos/cuadro.html', contexto)
 
 
+NO_CAMBIAR = '-'
+MAX_DIAS_SELECCIONADOS = 62
+
+
+def _guardar_turnos(request, funcionarios, fechas, tipos):
+    """Aplica el turno elegido para cada funcionario en todas las fechas.
+
+    Valor vacío: quita el turno. NO_CAMBIAR: deja lo que haya. Un turno desconocido se ignora.
+    """
+    tipos_por_id = {str(t.pk): t for t in tipos}
+    with transaction.atomic():
+        for funcionario in funcionarios:
+            valor = request.POST.get(f'turno_{funcionario.pk}', NO_CAMBIAR)
+            if valor == '':
+                AsignacionTurno.objects.filter(funcionario=funcionario, fecha__in=fechas).delete()
+            elif valor in tipos_por_id:
+                for un_dia in fechas:
+                    AsignacionTurno.objects.update_or_create(
+                        funcionario=funcionario, fecha=un_dia,
+                        defaults={'tipo_turno': tipos_por_id[valor], 'asignado_por': request.user},
+                    )
+
+
+def _volver_al_cuadro(fecha, area):
+    parametros = {'anio': fecha.year, 'mes': fecha.month}
+    if area:
+        parametros['area'] = area.pk
+    return redirect(f"{reverse('turnos:cuadro')}?{urlencode(parametros)}")
+
+
+def _fechas_elegidas(texto):
+    """Convierte '2026-10-20,2026-10-22' en una lista ordenada de fechas válidas, sin repetir."""
+    fechas = set()
+    for parte in texto.split(','):
+        try:
+            fechas.add(datetime.date.fromisoformat(parte.strip()))
+        except ValueError:
+            continue
+    return sorted(fechas)[:MAX_DIAS_SELECCIONADOS]
+
+
 @administrador_requerido
 def dia(request, anio, mes, dia):
     """Asigna el turno de cada funcionario en un día, o en toda su semana."""
@@ -81,27 +122,13 @@ def dia(request, anio, mes, dia):
     tipos = list(TipoTurno.objects.filter(Q(activo=True) | Q(pk__in=usados_hoy)))
 
     if request.method == 'POST':
-        tipos_por_id = {str(t.pk): t for t in tipos}
         fechas = semana if request.POST.get('alcance') == 'semana' else [fecha]
-        with transaction.atomic():
-            for funcionario in funcionarios:
-                valor = request.POST.get(f'turno_{funcionario.pk}', '')
-                if valor == '':
-                    AsignacionTurno.objects.filter(funcionario=funcionario, fecha__in=fechas).delete()
-                elif valor in tipos_por_id:
-                    for un_dia in fechas:
-                        AsignacionTurno.objects.update_or_create(
-                            funcionario=funcionario, fecha=un_dia,
-                            defaults={'tipo_turno': tipos_por_id[valor], 'asignado_por': request.user},
-                        )
+        _guardar_turnos(request, funcionarios, fechas, tipos)
         if len(fechas) == 1:
             messages.success(request, f'Turnos del {fecha:%d/%m/%Y} guardados.')
         else:
             messages.success(request, f'Turnos de la semana del {semana[0]:%d/%m} al {semana[-1]:%d/%m/%Y} guardados.')
-        parametros = {'anio': fecha.year, 'mes': fecha.month}
-        if area:
-            parametros['area'] = area.pk
-        return redirect(f"{reverse('turnos:cuadro')}?{urlencode(parametros)}")
+        return _volver_al_cuadro(fecha, area)
 
     filas = [
         {
@@ -120,6 +147,48 @@ def dia(request, anio, mes, dia):
         'tipos': tipos,
         'areas': Area.objects.filter(activo=True),
         'area': area,
+    })
+
+
+@administrador_requerido
+def varios(request):
+    """Asigna turnos en varios días elegidos en el cuadro del mes (?fechas=AAAA-MM-DD,AAAA-MM-DD…)."""
+    datos = request.POST if request.method == 'POST' else request.GET
+    fechas = _fechas_elegidas(datos.get('fechas', ''))
+    area = _area_elegida(datos)
+    if not fechas:
+        messages.error(request, 'Seleccione al menos un día en el cuadro.')
+        return redirect('turnos:cuadro')
+    funcionarios = list(_funcionarios_activos(area))
+
+    asignaciones = AsignacionTurno.objects.filter(funcionario__in=funcionarios, fecha__in=fechas).select_related('tipo_turno')
+    por_funcionario = defaultdict(dict)
+    for asignacion in asignaciones:
+        por_funcionario[asignacion.funcionario_id][asignacion.fecha] = asignacion.tipo_turno
+
+    usados = {asignacion.tipo_turno_id for asignacion in asignaciones}
+    tipos = list(TipoTurno.objects.filter(Q(activo=True) | Q(pk__in=usados)))
+
+    if request.method == 'POST':
+        _guardar_turnos(request, funcionarios, fechas, tipos)
+        messages.success(request, f'Turnos guardados en {len(fechas)} día{"s" if len(fechas) != 1 else ""}.')
+        return _volver_al_cuadro(fechas[0], area)
+
+    filas = []
+    for f in funcionarios:
+        turnos = [por_funcionario[f.pk].get(d) for d in fechas]
+        distintos = {t.pk if t else None for t in turnos}
+        # Si tiene el mismo turno en todos los días elegidos, ese aparece seleccionado; si no, "No cambiar".
+        comun = turnos[0] if len(distintos) == 1 and turnos[0] else None
+        filas.append({'funcionario': f, 'turnos': turnos, 'comun': comun})
+
+    return render(request, 'turnos/varios.html', {
+        'fechas': fechas,
+        'fechas_texto': ','.join(d.isoformat() for d in fechas),
+        'filas': filas,
+        'tipos': tipos,
+        'area': area,
+        'no_cambiar': NO_CAMBIAR,
     })
 
 
