@@ -21,12 +21,16 @@
 
             {% if es_admin %}
                 <span class="menu-titulo">Administración</span>
+                <a href="{% url 'turnos:cuadro' %}"
+                   class="{% if app == 'turnos' and 'tipo' not in vista %}activo{% endif %}">Cuadro de turno</a>
                 <a href="{% url 'funcionarios:lista' %}"
                    class="{% if app == 'funcionarios' and not tipo %}activo{% endif %}">Funcionarios</a>
                 <a href="{% url 'funcionarios:catalogo' 'cargos' %}"
                    class="{% if tipo == 'cargos' %}activo{% endif %}">Cargos</a>
                 <a href="{% url 'funcionarios:catalogo' 'areas' %}"
                    class="{% if tipo == 'areas' %}activo{% endif %}">Áreas</a>
+                <a href="{% url 'turnos:tipos' %}"
+                   class="{% if app == 'turnos' and 'tipo' in vista %}activo{% endif %}">Tipos de turno</a>
             {% endif %}
         </nav>
 

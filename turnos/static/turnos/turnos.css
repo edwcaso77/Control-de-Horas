@@ -1,0 +1,98 @@
+/* Cuadro de turno */
+.subtitulo-cuadro {
+    display: block;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--azul);
+}
+
+.chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 28px;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: .8rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.chip-mini { min-width: 22px; padding: 1px 4px; font-size: .72rem; }
+.chip-vacio { background: #EEF2F5; color: #9AA4AD; }
+
+.leyenda {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 10px;
+}
+
+.leyenda-texto { margin-right: 8px; }
+.leyenda-texto small { color: var(--texto-suave); }
+.leyenda-ayuda { margin-left: auto; color: var(--texto-suave); font-size: .9rem; }
+
+/* Cada día del calendario es un enlace a la edición de ese día */
+.dia-enlace {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    border-radius: 0;
+}
+
+.dia-enlace:hover { background: rgba(7, 112, 184, .07); outline: 2px solid var(--azul-claro); outline-offset: -2px; }
+
+.resumen-dia {
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+    margin-top: 28px;
+    pointer-events: none;
+}
+
+/* Edición de un día */
+.navegacion-dia { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.asignar-todos {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.asignar-todos label { font-weight: 600; }
+.asignar-todos select { width: auto; min-width: 200px; }
+
+.selector-turno { min-width: 170px; }
+
+.semana-titulo { min-width: 200px; }
+
+.dias-semana,
+.semana-turnos {
+    display: flex;
+    gap: 3px;
+}
+
+.dias-semana span {
+    width: 22px;
+    font-size: .72rem;
+    text-align: center;
+    text-transform: uppercase;
+    opacity: .8;
+}
+
+.dias-semana .dia-actual { opacity: 1; text-decoration: underline; }
+
+.alcance {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 16px 0;
+    padding: 12px 16px;
+    border: 1px solid var(--borde);
+    border-radius: 8px;
+}
+
+.alcance legend { padding: 0 6px; font-weight: 700; color: var(--azul-marino); }
+.alcance label { display: flex; align-items: center; gap: 8px; cursor: pointer; }

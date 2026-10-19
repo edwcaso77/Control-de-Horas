@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block titulo %}Tipos de turno{% endblock %}
+
+{% block estilos %}<link rel="stylesheet" href="{% static 'turnos/turnos.css' %}">{% endblock %}
+
+{% block contenido %}
+<header class="encabezado-pagina">
+    <h1>Tipos de turno</h1>
+    <a href="{% url 'turnos:tipo_crear' %}" class="boton boton-verde">+ Nuevo tipo de turno</a>
+</header>
+
+<div class="tabla-contenedor">
+    <table class="tabla">
+        <thead>
+            <tr>
+                <th>Turno</th>
+                <th>Nombre</th>
+                <th>Horario</th>
+                <th>Horas</th>
+                <th>Estado</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for tipo in tipos %}
+                <tr class="{% if not tipo.activo %}fila-inactiva{% endif %}">
+                    <td><span class="chip" style="background: {{ tipo.color }}; color: {{ tipo.color_texto }}">{{ tipo.abreviatura }}</span></td>
+                    <td>{{ tipo.nombre }}</td>
+                    <td>{{ tipo.horario }}</td>
+                    <td>{{ tipo.duracion_horas|floatformat:"-1" }}</td>
+                    <td>
+                        {% if tipo.activo %}<span class="etiqueta etiqueta-activo">Activo</span>
+                        {% else %}<span class="etiqueta etiqueta-inactivo">Inactivo</span>{% endif %}
+                    </td>
+                    <td>
+                        <div class="acciones">
+                            <a href="{% url 'turnos:tipo_editar' tipo.pk %}" class="boton boton-pequeno">Editar</a>
+                            <form method="post" action="{% url 'turnos:tipo_estado' tipo.pk %}">
+                                {% csrf_token %}
+                                {% if tipo.activo %}
+                                    <button type="submit" class="boton boton-pequeno boton-peligro">Desactivar</button>
+                                {% else %}
+                                    <button type="submit" class="boton boton-pequeno">Activar</button>
+                                {% endif %}
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="6" class="vacio">Todavía no hay tipos de turno. Cree el primero, por ejemplo: Mañana, Tarde, Noche y Descanso.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

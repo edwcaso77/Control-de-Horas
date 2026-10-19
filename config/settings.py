@@ -63,6 +63,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'calendario',
     'funcionarios',
+    'turnos',
 ]
 
 MIDDLEWARE = [

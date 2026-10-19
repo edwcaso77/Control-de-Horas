@@ -1,0 +1,42 @@
+{% extends 'calendario/mes_base.html' %}
+{% load static %}
+
+{% block titulo %}Cuadro de turno · {{ nombre_mes }} {{ anio }}{% endblock %}
+
+{% block estilos_extra %}<link rel="stylesheet" href="{% static 'turnos/turnos.css' %}">{% endblock %}
+
+{% block titulo_mes %}{{ nombre_mes }} <span class="subtitulo-cuadro">Cuadro de turno</span>{% endblock %}
+
+{% block campos_selector %}
+    <select name="area" aria-label="Área" onchange="this.form.submit()">
+        <option value="">Todas las áreas</option>
+        {% for a in areas %}
+            <option value="{{ a.pk }}"{% if area and a.pk == area.pk %} selected{% endif %}>{{ a }}</option>
+        {% endfor %}
+    </select>
+{% endblock %}
+
+{% block antes_cuadricula %}
+    <div class="leyenda">
+        {% for tipo in tipos_activos %}
+            <span class="chip" style="background: {{ tipo.color }}; color: {{ tipo.color_texto }}">{{ tipo.abreviatura }}</span>
+            <span class="leyenda-texto">{{ tipo.nombre }} <small>{{ tipo.horario }}</small></span>
+        {% empty %}
+            <span class="mensaje mensaje-error">
+                Primero cree los turnos en <a href="{% url 'turnos:tipos' %}">Tipos de turno</a>.
+            </span>
+        {% endfor %}
+        <span class="leyenda-ayuda">Haga clic en un día para asignar los turnos.</span>
+    </div>
+{% endblock %}
+
+{% block dia %}
+    <a class="dia-enlace" href="{% url 'turnos:dia' dia.fecha.year dia.fecha.month dia.fecha.day %}{% if area %}?area={{ area.pk }}{% endif %}"
+       aria-label="Asignar turnos del {{ dia.fecha|date:'j \d\e F' }}"></a>
+    <div class="resumen-dia">
+        {% for item in dia.resumen %}
+            <span class="chip" style="background: {{ item.tipo.color }}; color: {{ item.tipo.color_texto }}"
+                  title="{{ item.tipo.nombre }}: {{ item.total }}">{{ item.tipo.abreviatura }} {{ item.total }}</span>
+        {% endfor %}
+    </div>
+{% endblock %}

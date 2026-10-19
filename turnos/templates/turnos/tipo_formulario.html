@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+
+{% block titulo %}{{ titulo }}{% endblock %}
+
+{% block contenido %}
+<header class="encabezado-pagina">
+    <h1>{{ titulo }}</h1>
+</header>
+
+<form method="post" class="formulario" novalidate>
+    {% csrf_token %}
+    {% for error in form.non_field_errors %}
+        <div class="mensaje mensaje-error">{{ error }}</div>
+    {% endfor %}
+
+    <fieldset class="seccion-formulario">
+        <legend>Datos del turno</legend>
+        <div class="rejilla">
+            {% include 'includes/campo.html' with campo=form.nombre %}
+            {% include 'includes/campo.html' with campo=form.abreviatura %}
+            {% include 'includes/campo.html' with campo=form.hora_inicio %}
+            {% include 'includes/campo.html' with campo=form.hora_fin %}
+            {% include 'includes/campo.html' with campo=form.color %}
+        </div>
+        <p class="ayuda">Deje las horas vacías para turnos sin horario, como Descanso o Vacaciones.
+            Si el turno termina al día siguiente (por ejemplo, 19:00 a 07:00), escríbalo tal cual.</p>
+    </fieldset>
+
+    <div class="botones-formulario">
+        <button type="submit" class="boton boton-primario">Guardar</button>
+        <a href="{% url 'turnos:tipos' %}" class="boton">Cancelar</a>
+    </div>
+</form>
+{% endblock %}

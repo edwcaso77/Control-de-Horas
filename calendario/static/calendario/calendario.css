@@ -30,6 +30,8 @@
 }
 
 .navegacion {
+    flex-wrap: wrap;
+    justify-content: center;
     display: flex;
     align-items: center;
     gap: 8px;

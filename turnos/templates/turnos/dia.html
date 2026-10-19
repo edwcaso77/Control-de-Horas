@@ -1,0 +1,112 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block titulo %}Turnos del {{ fecha|date:'d/m/Y' }}{% endblock %}
+
+{% block estilos %}<link rel="stylesheet" href="{% static 'turnos/turnos.css' %}">{% endblock %}
+
+{% block contenido %}
+<header class="encabezado-pagina">
+    <h1>{{ fecha|date:'l j \d\e F \d\e Y'|capfirst }}</h1>
+    <div class="navegacion-dia">
+        <a class="boton" href="{% url 'turnos:dia' anterior.year anterior.month anterior.day %}{% if area %}?area={{ area.pk }}{% endif %}">&#8249; Día anterior</a>
+        <a class="boton" href="{% url 'turnos:dia' siguiente.year siguiente.month siguiente.day %}{% if area %}?area={{ area.pk }}{% endif %}">Día siguiente &#8250;</a>
+        <a class="boton" href="{% url 'turnos:cuadro' %}?anio={{ fecha.year }}&mes={{ fecha.month }}{% if area %}&area={{ area.pk }}{% endif %}">Volver al mes</a>
+    </div>
+</header>
+
+<form method="get" class="filtros">
+    <select name="area" aria-label="Área" onchange="this.form.submit()">
+        <option value="">Todas las áreas</option>
+        {% for a in areas %}
+            <option value="{{ a.pk }}"{% if area and a.pk == area.pk %} selected{% endif %}>{{ a }}</option>
+        {% endfor %}
+    </select>
+</form>
+
+{% if not tipos %}
+    <div class="mensaje mensaje-error">
+        Todavía no hay turnos creados. Créelos primero en <a href="{% url 'turnos:tipos' %}">Tipos de turno</a>.
+    </div>
+{% elif not filas %}
+    <div class="mensaje">No hay funcionarios activos{% if area %} en {{ area }}{% endif %}.</div>
+{% else %}
+<form method="post" class="formulario-turnos">
+    {% csrf_token %}
+    {% if area %}<input type="hidden" name="area" value="{{ area.pk }}">{% endif %}
+
+    <div class="asignar-todos">
+        <label for="turno-todos">Asignar a todos:</label>
+        <select id="turno-todos">
+            <option value="-">Elegir…</option>
+            <option value="">— Sin turno —</option>
+            {% for tipo in tipos %}<option value="{{ tipo.pk }}">{{ tipo.abreviatura }} · {{ tipo.nombre }}</option>{% endfor %}
+        </select>
+    </div>
+
+    <div class="tabla-contenedor">
+        <table class="tabla">
+            <thead>
+                <tr>
+                    <th>Funcionario</th>
+                    <th>Cargo</th>
+                    <th>Área</th>
+                    <th>Turno</th>
+                    <th class="semana-titulo">
+                        Semana
+                        <span class="dias-semana">
+                            {% for d in semana %}<span class="{% if d == fecha %}dia-actual{% endif %}">{{ d|date:'D'|slice:':1' }}</span>{% endfor %}
+                        </span>
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for fila in filas %}
+                    <tr>
+                        <td>{{ fila.funcionario.apellidos }}, {{ fila.funcionario.nombres }}</td>
+                        <td>{{ fila.funcionario.cargo|default:"—" }}</td>
+                        <td>{{ fila.funcionario.area|default:"—" }}</td>
+                        <td>
+                            <select name="turno_{{ fila.funcionario.pk }}" class="selector-turno" aria-label="Turno de {{ fila.funcionario.nombre_completo }}">
+                                <option value="">— Sin turno —</option>
+                                {% for tipo in tipos %}
+                                    <option value="{{ tipo.pk }}"{% if fila.turno and fila.turno.pk == tipo.pk %} selected{% endif %}>{{ tipo.abreviatura }} · {{ tipo.nombre }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td>
+                            <span class="semana-turnos">
+                                {% for t in fila.semana %}
+                                    {% if t %}<span class="chip chip-mini" style="background: {{ t.color }}; color: {{ t.color_texto }}" title="{{ t.nombre }}">{{ t.abreviatura }}</span>
+                                    {% else %}<span class="chip chip-mini chip-vacio">·</span>{% endif %}
+                                {% endfor %}
+                            </span>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <fieldset class="alcance">
+        <legend>Aplicar a</legend>
+        <label><input type="radio" name="alcance" value="dia" checked> Solo este día</label>
+        <label><input type="radio" name="alcance" value="semana"> Toda la semana (lunes {{ semana.0|date:'j' }} a domingo {{ semana.6|date:'j \d\e F' }})</label>
+        <small class="ayuda">Quien quede "Sin turno" quedará sin turno en todos los días elegidos.</small>
+    </fieldset>
+
+    <div class="botones-formulario">
+        <button type="submit" class="boton boton-primario">Guardar</button>
+        <a class="boton" href="{% url 'turnos:cuadro' %}?anio={{ fecha.year }}&mes={{ fecha.month }}{% if area %}&area={{ area.pk }}{% endif %}">Cancelar</a>
+    </div>
+</form>
+
+<script>
+    document.getElementById('turno-todos').addEventListener('change', function () {
+        if (this.value === '-') return;
+        document.querySelectorAll('.selector-turno').forEach(s => { s.value = this.value; });
+        this.value = '-';
+    });
+</script>
+{% endif %}
+{% endblock %}

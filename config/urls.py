@@ -13,5 +13,6 @@ urlpatterns = [
     ),
     path('salir/', auth_views.LogoutView.as_view(), name='salir'),
     path('funcionarios/', include('funcionarios.urls')),
+    path('cuadro-de-turno/', include('turnos.urls')),
     path('', include('calendario.urls')),
 ]

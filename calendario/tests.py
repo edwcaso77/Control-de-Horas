@@ -39,13 +39,13 @@ class CalendarioMesTests(TestCase):
 
     def test_parametros_invalidos_usan_el_mes_actual(self):
         hoy = datetime.date(2026, 10, 16)
-        with mock.patch('calendario.views.timezone.localdate', return_value=hoy):
+        with mock.patch('calendario.utils.timezone.localdate', return_value=hoy):
             contexto = self._get(anio='abc', mes='13').context
         self.assertEqual((contexto['anio'], contexto['mes']), (2026, 10))
 
     def test_resalta_el_dia_de_hoy(self):
         hoy = datetime.date(2026, 10, 16)
-        with mock.patch('calendario.views.timezone.localdate', return_value=hoy):
+        with mock.patch('calendario.utils.timezone.localdate', return_value=hoy):
             semanas = self._get().context['semanas']
         marcados = [d['fecha'] for s in semanas for d in s if d['es_hoy']]
         self.assertEqual(marcados, [hoy])
