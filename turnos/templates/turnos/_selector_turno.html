@@ -1,0 +1,17 @@
+{% load l10n %}
+{# Un turno de una celda: lista de turnos y, si el turno es de horas variables, la casilla de horas. #}
+<span class="selector-ranura{% if ranura == 2 %} ranura-adicional{% endif %}">
+    <select name="{{ nombre }}_{{ ranura }}" class="selector-turno" data-ranura="{{ ranura }}"{% if columna != None %} data-columna="{{ columna }}"{% endif %}
+            aria-label="{{ etiqueta }}{% if ranura == 2 %} (adicional){% endif %}">
+        <option value="">{% if ranura == 1 %}{% if completo %}— Sin turno —{% else %}—{% endif %}{% else %}+ adicional{% endif %}</option>
+        {% for tipo in tipos %}
+            <option value="{{ tipo.pk }}" data-color="{{ tipo.color }}" data-texto="{{ tipo.color_texto }}"
+                    {% if tipo.horas_variables %}data-variable data-min="{{ tipo.horas_minimas|unlocalize }}" data-max="{{ tipo.horas_maximas|unlocalize }}"{% endif %}
+                    title="{{ tipo.nombre }} · {{ tipo.horario }}"
+                    {% if asignacion and asignacion.tipo_turno_id == tipo.pk %}selected{% endif %}>{{ tipo.abreviatura }}{% if completo %} · {{ tipo.nombre }}{% endif %}</option>
+        {% endfor %}
+    </select>
+    <input type="number" name="horas_{{ nombre }}_{{ ranura }}" class="horas-turno" step="0.5" inputmode="decimal"
+           value="{% if asignacion and asignacion.horas is not None %}{{ asignacion.horas|unlocalize }}{% endif %}"
+           placeholder="h" title="Horas" aria-label="Horas de {{ etiqueta }}" hidden>
+</span>

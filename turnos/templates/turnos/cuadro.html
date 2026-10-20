@@ -53,8 +53,8 @@
     <div class="personas-dia">
         {% for a in dia.turnos %}
             <span class="persona" style="background: {{ a.tipo_turno.color }}; color: {{ a.tipo_turno.color_texto }}"
-                  title="{{ a.funcionario.nombre_completo }} · {{ a.tipo_turno.nombre }} {{ a.tipo_turno.horario }}">
-                <b>{{ a.tipo_turno.abreviatura }}</b> {{ a.funcionario.nombre_corto }}
+                  title="{{ a.funcionario.nombre_completo }} · {{ a.tipo_turno.nombre }} {{ a.horario }}">
+                <b>{{ a.etiqueta }}</b> {{ a.funcionario.nombre_corto }}
             </span>
         {% endfor %}
     </div>

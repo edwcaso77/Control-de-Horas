@@ -13,9 +13,9 @@
         <strong class="lista-fecha">{{ dia.fecha|date:'l j \d\e F'|capfirst }}</strong>
         {% for a in dia.turnos %}
             <span class="lista-persona">
-                <span class="chip" style="background: {{ a.tipo_turno.color }}; color: {{ a.tipo_turno.color_texto }}">{{ a.tipo_turno.abreviatura }}</span>
+                <span class="chip" style="background: {{ a.tipo_turno.color }}; color: {{ a.tipo_turno.color_texto }}">{{ a.etiqueta }}</span>
                 {{ a.funcionario.nombre_completo }}
-                <small>{{ a.tipo_turno.horario }}</small>
+                <small>{{ a.horario }}</small>
             </span>
         {% empty %}
             <span class="lista-vacia">{% if es_admin %}Sin turnos asignados{% else %}No tiene turno{% endif %}</span>

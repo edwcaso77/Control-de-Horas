@@ -18,12 +18,33 @@
         <div class="rejilla">
             {% include 'includes/campo.html' with campo=form.nombre %}
             {% include 'includes/campo.html' with campo=form.abreviatura %}
-            {% include 'includes/campo.html' with campo=form.hora_inicio %}
-            {% include 'includes/campo.html' with campo=form.hora_fin %}
             {% include 'includes/campo.html' with campo=form.color %}
         </div>
-        <p class="ayuda">Deje las horas vacías para turnos sin horario, como Descanso o Vacaciones.
-            Si el turno termina al día siguiente (por ejemplo, 19:00 a 07:00), escríbalo tal cual.</p>
+        {% include 'includes/campo.html' with campo=form.horas_variables %}
+    </fieldset>
+
+    <fieldset class="seccion-formulario" id="seccion-horario">
+        <legend>Horario</legend>
+        <div class="rejilla">
+            {% include 'includes/campo.html' with campo=form.hora_inicio %}
+            {% include 'includes/campo.html' with campo=form.hora_fin %}
+        </div>
+        <p class="ayuda">Si el turno termina al día siguiente (por ejemplo, 19:00 a 07:00), escríbalo tal cual.
+            Deje las horas vacías para marcas sin horario, como Descanso.</p>
+        <p class="subtitulo-seccion">Segundo bloque (opcional, para jornadas partidas como 08:00–12:00 y 14:00–18:00)</p>
+        <div class="rejilla">
+            {% include 'includes/campo.html' with campo=form.hora_inicio_2 %}
+            {% include 'includes/campo.html' with campo=form.hora_fin_2 %}
+        </div>
+    </fieldset>
+
+    <fieldset class="seccion-formulario" id="seccion-horas-variables">
+        <legend>Horas que se pueden asignar</legend>
+        <p class="ayuda">Al asignar este turno se escriben las horas, dentro de este rango (por ejemplo, disponibilidad de 2 a 4 horas).</p>
+        <div class="rejilla">
+            {% include 'includes/campo.html' with campo=form.horas_minimas %}
+            {% include 'includes/campo.html' with campo=form.horas_maximas %}
+        </div>
     </fieldset>
 
     <div class="botones-formulario">
@@ -31,4 +52,17 @@
         <a href="{% url 'turnos:tipos' %}" class="boton">Cancelar</a>
     </div>
 </form>
+
+<script>
+    // Muestra el horario o el rango de horas según si el turno es de horas variables.
+    (function () {
+        const casilla = document.getElementById('{{ form.horas_variables.id_for_label }}');
+        function actualizar() {
+            document.getElementById('seccion-horario').hidden = casilla.checked;
+            document.getElementById('seccion-horas-variables').hidden = !casilla.checked;
+        }
+        casilla.addEventListener('change', actualizar);
+        actualizar();
+    })();
+</script>
 {% endblock %}

@@ -7,10 +7,18 @@ from .models import TipoTurno
 class TipoTurnoForm(forms.ModelForm):
     class Meta:
         model = TipoTurno
-        fields = ['nombre', 'abreviatura', 'hora_inicio', 'hora_fin', 'color']
+        fields = [
+            'nombre', 'abreviatura', 'color', 'horas_variables',
+            'hora_inicio', 'hora_fin', 'hora_inicio_2', 'hora_fin_2',
+            'horas_minimas', 'horas_maximas',
+        ]
         widgets = {
             'hora_inicio': forms.TimeInput(attrs={'type': 'time'}, format='%H:%M'),
             'hora_fin': forms.TimeInput(attrs={'type': 'time'}, format='%H:%M'),
+            'hora_inicio_2': forms.TimeInput(attrs={'type': 'time'}, format='%H:%M'),
+            'hora_fin_2': forms.TimeInput(attrs={'type': 'time'}, format='%H:%M'),
+            'horas_minimas': forms.NumberInput(attrs={'step': '0.5', 'min': '0.5', 'max': '24'}),
+            'horas_maximas': forms.NumberInput(attrs={'step': '0.5', 'min': '0.5', 'max': '24'}),
             'color': forms.TextInput(attrs={'type': 'color'}),
         }
 

@@ -50,8 +50,8 @@
             <tbody>
                 {% for a in turnos %}
                     <tr>
-                        <td><span class="chip" style="background: {{ a.tipo_turno.color }}; color: {{ a.tipo_turno.color_texto }}" title="{{ a.tipo_turno.nombre }}">{{ a.tipo_turno.abreviatura }}</span> {{ a.tipo_turno.nombre }}</td>
-                        <td>{{ a.tipo_turno.horario }}</td>
+                        <td><span class="chip" style="background: {{ a.tipo_turno.color }}; color: {{ a.tipo_turno.color_texto }}" title="{{ a.tipo_turno.nombre }}">{{ a.etiqueta }}</span> {{ a.tipo_turno.nombre }}</td>
+                        <td>{{ a.horario }}</td>
                         <td>{{ a.funcionario.apellidos }}, {{ a.funcionario.nombres }}</td>
                         <td>{{ a.funcionario.cargo|default:"—" }}</td>
                         <td>{{ a.funcionario.area|default:"—" }}</td>

@@ -37,8 +37,8 @@
 
     <div class="asignar-todos">
         <label for="turno-todos">Asignar a todos:</label>
-        <select id="turno-todos">
-            <option value="-">Elegir…</option>
+        <select id="turno-todos" class="llenar" data-columna="todas">
+            <option value="*">Elegir…</option>
             <option value="">— Sin turno —</option>
             {% for tipo in tipos %}<option value="{{ tipo.pk }}">{{ tipo.abreviatura }} · {{ tipo.nombre }}</option>{% endfor %}
         </select>
@@ -51,7 +51,7 @@
                     <th>Funcionario</th>
                     <th>Cargo</th>
                     <th>Área</th>
-                    <th>Turno</th>
+                    <th>Turno <small class="ayuda-encabezado">principal y adicional</small></th>
                     <th class="semana-titulo">
                         Semana
                         <span class="dias-semana">
@@ -66,19 +66,21 @@
                         <td>{{ fila.funcionario.apellidos }}, {{ fila.funcionario.nombres }}</td>
                         <td>{{ fila.funcionario.cargo|default:"—" }}</td>
                         <td>{{ fila.funcionario.area|default:"—" }}</td>
-                        <td>
-                            <select name="turno_{{ fila.funcionario.pk }}" class="selector-turno" aria-label="Turno de {{ fila.funcionario.nombre_completo }}">
-                                <option value="">— Sin turno —</option>
-                                {% for tipo in tipos %}
-                                    <option value="{{ tipo.pk }}"{% if fila.turno and fila.turno.pk == tipo.pk %} selected{% endif %}>{{ tipo.abreviatura }} · {{ tipo.nombre }}</option>
-                                {% endfor %}
-                            </select>
+                        <td class="celda-turnos">
+                            {% for asignacion in fila.ranuras %}
+                                {% include 'turnos/_selector_turno.html' with nombre=fila.clave ranura=forloop.counter asignacion=asignacion completo=True columna=None etiqueta=fila.funcionario.nombre_completo %}
+                            {% endfor %}
                         </td>
                         <td>
                             <span class="semana-turnos">
-                                {% for t in fila.semana %}
-                                    {% if t %}<span class="chip chip-mini" style="background: {{ t.color }}; color: {{ t.color_texto }}" title="{{ t.nombre }}">{{ t.abreviatura }}</span>
-                                    {% else %}<span class="chip chip-mini chip-vacio">·</span>{% endif %}
+                                {% for turnos_dia in fila.semana %}
+                                    <span class="semana-dia">
+                                        {% for a in turnos_dia %}
+                                            <span class="chip chip-mini" style="background: {{ a.tipo_turno.color }}; color: {{ a.tipo_turno.color_texto }}" title="{{ a.tipo_turno.nombre }} · {{ a.horario }}">{{ a.etiqueta }}</span>
+                                        {% empty %}
+                                            <span class="chip chip-mini chip-vacio">·</span>
+                                        {% endfor %}
+                                    </span>
                                 {% endfor %}
                             </span>
                         </td>
@@ -92,7 +94,7 @@
         <legend>Aplicar a</legend>
         <label><input type="radio" name="alcance" value="dia" checked> Solo este día</label>
         <label><input type="radio" name="alcance" value="semana"> Toda la semana (lunes {{ semana.0|date:'j' }} a domingo {{ semana.6|date:'j \d\e F' }})</label>
-        <small class="ayuda">Quien quede "Sin turno" quedará sin turno en todos los días elegidos.</small>
+        <small class="ayuda">Cada persona queda con los turnos elegidos en todos los días marcados; quien quede "Sin turno" no tendrá turno esos días.</small>
     </fieldset>
 
     <div class="botones-formulario">
@@ -101,12 +103,6 @@
     </div>
 </form>
 
-<script>
-    document.getElementById('turno-todos').addEventListener('change', function () {
-        if (this.value === '-') return;
-        document.querySelectorAll('.selector-turno').forEach(s => { s.value = this.value; });
-        this.value = '-';
-    });
-</script>
+<script src="{% static 'turnos/selector.js' %}"></script>
 {% endif %}
 {% endblock %}

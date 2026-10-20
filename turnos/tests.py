@@ -1,4 +1,5 @@
 import datetime
+from decimal import Decimal
 
 from django.test import TestCase, override_settings
 from django.urls import reverse
@@ -6,6 +7,7 @@ from django.urls import reverse
 from funcionarios.models import Area, Cargo, Funcionario
 from funcionarios.tests import crear_funcionario
 
+from .forms import TipoTurnoForm
 from .models import AsignacionTurno, TipoTurno
 
 
@@ -64,8 +66,8 @@ class CuadroTurnoTests(DatosCuadroMixin, TestCase):
 
     def test_asignar_turnos_de_un_dia(self):
         respuesta = self.client.post(self._url_dia(), {
-            f'turno_{self.ana.pk}': self.manana.pk,
-            f'turno_{self.luis.pk}': self.noche.pk,
+            f'turno_{self.ana.pk}_1': self.manana.pk,
+            f'turno_{self.luis.pk}_1': self.noche.pk,
             'alcance': 'dia',
         })
         self.assertRedirects(respuesta, f"{reverse('turnos:cuadro')}?anio=2026&mes=10")
@@ -74,15 +76,15 @@ class CuadroTurnoTests(DatosCuadroMixin, TestCase):
         self.assertEqual(AsignacionTurno.objects.count(), 2)
 
     def test_aplicar_a_toda_la_semana(self):
-        self.client.post(self._url_dia(), {f'turno_{self.ana.pk}': self.noche.pk, 'alcance': 'semana'})
+        self.client.post(self._url_dia(), {f'turno_{self.ana.pk}_1': self.noche.pk, 'alcance': 'semana'})
         fechas = list(AsignacionTurno.objects.filter(funcionario=self.ana).values_list('fecha', flat=True))
         self.assertEqual(fechas, [datetime.date(2026, 10, d) for d in range(19, 26)])
 
     def test_cambiar_y_quitar_turno(self):
-        self.client.post(self._url_dia(), {f'turno_{self.ana.pk}': self.manana.pk, 'alcance': 'dia'})
-        self.client.post(self._url_dia(), {f'turno_{self.ana.pk}': self.noche.pk, 'alcance': 'dia'})
+        self.client.post(self._url_dia(), {f'turno_{self.ana.pk}_1': self.manana.pk, 'alcance': 'dia'})
+        self.client.post(self._url_dia(), {f'turno_{self.ana.pk}_1': self.noche.pk, 'alcance': 'dia'})
         self.assertEqual(AsignacionTurno.objects.get(funcionario=self.ana).tipo_turno, self.noche)
-        self.client.post(self._url_dia(), {f'turno_{self.ana.pk}': '', 'alcance': 'dia'})
+        self.client.post(self._url_dia(), {f'turno_{self.ana.pk}_1': '', 'alcance': 'dia'})
         self.assertFalse(AsignacionTurno.objects.filter(funcionario=self.ana).exists())
 
     def test_filtro_por_area_solo_toca_esa_area(self):
@@ -92,11 +94,11 @@ class CuadroTurnoTests(DatosCuadroMixin, TestCase):
         self.assertNotIn('Luis', nombres)
 
         # Guardar Urgencias sin turno no borra el turno de Luis, que es de otra área.
-        self.client.post(self._url_dia(), {'area': self.urgencias.pk, f'turno_{self.ana.pk}': '', 'alcance': 'dia'})
+        self.client.post(self._url_dia(), {'area': self.urgencias.pk, f'turno_{self.ana.pk}_1': '', 'alcance': 'dia'})
         self.assertTrue(AsignacionTurno.objects.filter(funcionario=self.luis).exists())
 
     def test_turno_inexistente_se_ignora(self):
-        self.client.post(self._url_dia(), {f'turno_{self.ana.pk}': '99999', 'alcance': 'dia'})
+        self.client.post(self._url_dia(), {f'turno_{self.ana.pk}_1': '99999', 'alcance': 'dia'})
         self.assertFalse(AsignacionTurno.objects.exists())
 
     def test_cada_dia_lista_nombres_ordenados_por_turno(self):
@@ -141,7 +143,7 @@ class VariosDiasTests(DatosCuadroMixin, TestCase):
         return ','.join(d.isoformat() for d in (fechas or self.fechas))
 
     def _celda(self, funcionario, fecha):
-        return f'turno_{funcionario.pk}_{fecha.isoformat()}'
+        return f'turno_{funcionario.pk}_{fecha.isoformat()}_1'
 
     def test_cada_celda_se_asigna_por_separado(self):
         d1, d2, d3 = self.fechas
@@ -177,7 +179,8 @@ class VariosDiasTests(DatosCuadroMixin, TestCase):
     def test_tabla_muestra_turnos_actuales_por_dia(self):
         AsignacionTurno.objects.create(funcionario=self.luis, fecha=self.fechas[1], tipo_turno=self.manana)
         filas = {f['funcionario'].pk: f for f in self.client.get(self._url(), {'fechas': self._texto()}).context['filas']}
-        self.assertEqual([c['turno'] for c in filas[self.luis.pk]['celdas']], [None, self.manana, None])
+        principales = [c['ranuras'][0] for c in filas[self.luis.pk]['celdas']]
+        self.assertEqual([a.tipo_turno if a else None for a in principales], [None, self.manana, None])
 
     def test_filtro_por_cargo(self):
         enfermero = Cargo.objects.create(nombre='Enfermero')
@@ -243,3 +246,107 @@ class BorrarAgendaTests(DatosCuadroMixin, TestCase):
         self.client.force_login(self.ana.usuario)
         self.assertEqual(self.client.post(reverse('turnos:borrar_agenda')).status_code, 403)
         self.assertEqual(AsignacionTurno.objects.count(), 2)
+
+
+class TurnosEspecialesTests(DatosCuadroMixin, TestCase):
+    """Jornada partida (A), turnos de horas variables (HC, extramural) y dos turnos el mismo día."""
+
+    def setUp(self):
+        super().setUp()
+        self.partido = TipoTurno.objects.create(
+            nombre='Jornada partida', abreviatura='A',
+            hora_inicio=datetime.time(8), hora_fin=datetime.time(12),
+            hora_inicio_2=datetime.time(14), hora_fin_2=datetime.time(18),
+        )
+        self.hc = TipoTurno.objects.create(
+            nombre='Disponibilidad', abreviatura='HC', horas_variables=True,
+            horas_minimas=Decimal('2'), horas_maximas=Decimal('4'),
+        )
+        self.extramural = TipoTurno.objects.create(
+            nombre='Extramural', abreviatura='1-12', horas_variables=True,
+            horas_minimas=Decimal('1'), horas_maximas=Decimal('12'),
+        )
+
+    def _url_dia(self):
+        return reverse('turnos:dia', args=[self.fecha.year, self.fecha.month, self.fecha.day])
+
+    def test_jornada_partida_suma_los_dos_bloques(self):
+        self.assertEqual(self.partido.duracion_horas, 8)
+        self.assertEqual(self.partido.horario, '08:00 – 12:00 / 14:00 – 18:00')
+
+    def test_turno_de_horas_variables(self):
+        self.assertEqual(self.hc.horario, 'Horas variables (2–4 h)')
+        self.assertEqual(self.hc.duracion_horas, 0)
+        asignacion = AsignacionTurno(funcionario=self.ana, fecha=self.fecha, tipo_turno=self.hc, horas=Decimal('3'))
+        self.assertEqual((asignacion.etiqueta, asignacion.horario, asignacion.horas_trabajadas), ('HC 3h', '3 h', 3.0))
+
+    def test_formulario_valida_las_clases_de_turno(self):
+        base = {'nombre': 'Nuevo', 'abreviatura': 'NV', 'color': '#000000'}
+        self.assertFalse(TipoTurnoForm({**base, 'horas_variables': 'on', 'horas_minimas': '5', 'horas_maximas': '2'}).is_valid())
+        self.assertFalse(TipoTurnoForm({**base, 'horas_variables': 'on'}).is_valid())
+        self.assertFalse(TipoTurnoForm({**base, 'horas_variables': 'on', 'horas_minimas': '1', 'horas_maximas': '2',
+                                        'hora_inicio': '08:00', 'hora_fin': '10:00'}).is_valid())
+        self.assertFalse(TipoTurnoForm({**base, 'hora_inicio_2': '14:00', 'hora_fin_2': '18:00'}).is_valid())
+        form = TipoTurnoForm({**base, 'hora_inicio': '08:00', 'hora_fin': '12:00', 'hora_inicio_2': '14:00', 'hora_fin_2': '18:00',
+                              'horas_minimas': '1', 'horas_maximas': '3'})
+        self.assertTrue(form.is_valid(), form.errors)
+        tipo = form.save()
+        # El rango de horas solo aplica a turnos de horas variables, así que no se guarda.
+        self.assertIsNone(tipo.horas_minimas)
+
+    def test_dos_turnos_el_mismo_dia_con_horas(self):
+        respuesta = self.client.post(self._url_dia(), {
+            f'turno_{self.ana.pk}_1': self.manana.pk,
+            f'turno_{self.ana.pk}_2': self.hc.pk,
+            f'horas_turno_{self.ana.pk}_2': '3',
+            'alcance': 'dia',
+        })
+        self.assertRedirects(respuesta, f"{reverse('turnos:cuadro')}?anio=2026&mes=10")
+        turnos = {a.tipo_turno.abreviatura: a.horas for a in AsignacionTurno.objects.filter(funcionario=self.ana)}
+        self.assertEqual(turnos, {'M': None, 'HC': Decimal('3.0')})
+
+        # Quitar el adicional deja solo el principal.
+        self.client.post(self._url_dia(), {f'turno_{self.ana.pk}_1': self.manana.pk, f'turno_{self.ana.pk}_2': '', 'alcance': 'dia'})
+        self.assertEqual(list(AsignacionTurno.objects.filter(funcionario=self.ana).values_list('tipo_turno__abreviatura', flat=True)), ['M'])
+
+    def test_horas_fuera_de_rango_no_cambian_nada(self):
+        AsignacionTurno.objects.create(funcionario=self.ana, fecha=self.fecha, tipo_turno=self.noche)
+        respuesta = self.client.post(self._url_dia(), {
+            f'turno_{self.ana.pk}_1': self.hc.pk, f'horas_turno_{self.ana.pk}_1': '9', 'alcance': 'dia',
+        }, follow=True)
+        self.assertContains(respuesta, 'HC necesita entre 2 y 4 horas')
+        self.assertEqual(AsignacionTurno.objects.get(funcionario=self.ana).tipo_turno, self.noche)
+
+    def test_el_mismo_turno_en_ambas_ranuras_cuenta_una_vez(self):
+        self.client.post(self._url_dia(), {
+            f'turno_{self.ana.pk}_1': self.partido.pk, f'turno_{self.ana.pk}_2': self.partido.pk, 'alcance': 'dia',
+        })
+        self.assertEqual(AsignacionTurno.objects.filter(funcionario=self.ana).count(), 1)
+
+    def test_cambiar_horas_actualiza_el_turno(self):
+        AsignacionTurno.objects.create(funcionario=self.ana, fecha=self.fecha, tipo_turno=self.extramural, horas=Decimal('6'))
+        self.client.post(self._url_dia(), {
+            f'turno_{self.ana.pk}_1': self.extramural.pk, f'horas_turno_{self.ana.pk}_1': '10', 'alcance': 'dia',
+        })
+        self.assertEqual(AsignacionTurno.objects.get(funcionario=self.ana).horas, Decimal('10'))
+
+    def test_varios_dias_con_turno_adicional(self):
+        fecha = datetime.date(2026, 10, 22)
+        clave = f'turno_{self.ana.pk}_{fecha.isoformat()}'
+        self.client.post(reverse('turnos:varios'), {
+            'fechas': fecha.isoformat(),
+            f'{clave}_1': self.partido.pk, f'{clave}_2': self.extramural.pk, f'horas_{clave}_2': '5',
+        })
+        turnos = {a.tipo_turno.abreviatura: a.horas for a in AsignacionTurno.objects.filter(funcionario=self.ana, fecha=fecha)}
+        self.assertEqual(turnos, {'A': None, '1-12': Decimal('5.0')})
+
+    def test_listas_muestran_las_horas(self):
+        AsignacionTurno.objects.create(funcionario=self.ana, fecha=self.fecha, tipo_turno=self.hc, horas=Decimal('3'))
+        AsignacionTurno.objects.create(funcionario=self.ana, fecha=self.fecha, tipo_turno=self.manana)
+        cuadro = self.client.get(reverse('turnos:cuadro'), {'anio': 2026, 'mes': 10})
+        self.assertContains(cuadro, '<b>HC 3h</b>')
+        dia = next(d for s in cuadro.context['semanas'] for d in s if d['fecha'] == self.fecha)
+        # Los turnos de horas variables (sin hora de inicio) quedan al final.
+        self.assertEqual([a.tipo_turno.abreviatura for a in dia['turnos']], ['M', 'HC'])
+        consulta = self.client.get(reverse('calendario:dia', args=[2026, 10, 21]))
+        self.assertContains(consulta, '3 h')

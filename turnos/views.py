@@ -1,5 +1,6 @@
 import datetime
 from collections import defaultdict
+from decimal import Decimal, InvalidOperation
 from urllib.parse import urlencode
 
 from django.conf import settings
@@ -17,7 +18,7 @@ from funcionarios.permisos import administrador_requerido
 
 from .forms import TipoTurnoForm
 from .agrupar import turnos_por_dia
-from .models import AsignacionTurno, TipoTurno
+from .models import TURNOS_POR_DIA, AsignacionTurno, TipoTurno, formato_horas
 
 
 def _area_elegida(datos):
@@ -80,27 +81,87 @@ def borrar_agenda(request):
     return redirect(f"{reverse('turnos:cuadro')}?{urlencode(parametros)}" if parametros else reverse('turnos:cuadro'))
 
 
-NO_CAMBIAR = '-'
 MAX_DIAS_SELECCIONADOS = 62
 
 
-def _guardar_turnos(request, funcionarios, fechas, tipos):
-    """Aplica el turno elegido para cada funcionario en todas las fechas.
+def _leer_celda(post, clave, tipos_por_id, errores, descripcion):
+    """Lee los turnos de una celda del formulario: «clave_1» (principal), «clave_2» (adicional)
+    y, para los turnos de horas variables, «horas_clave_N».
 
-    Valor vacío: quita el turno. NO_CAMBIAR: deja lo que haya. Un turno desconocido se ignora.
+    Devuelve [(tipo, horas), …] sin repetir tipos, o None si la celda no vino en el formulario
+    o tiene horas fuera de rango (en ese caso no se cambia nada de esa celda y se anota el error).
     """
-    tipos_por_id = {str(t.pk): t for t in tipos}
-    with transaction.atomic():
-        for funcionario in funcionarios:
-            valor = request.POST.get(f'turno_{funcionario.pk}', NO_CAMBIAR)
-            if valor == '':
-                AsignacionTurno.objects.filter(funcionario=funcionario, fecha__in=fechas).delete()
-            elif valor in tipos_por_id:
-                for un_dia in fechas:
-                    AsignacionTurno.objects.update_or_create(
-                        funcionario=funcionario, fecha=un_dia,
-                        defaults={'tipo_turno': tipos_por_id[valor], 'asignado_por': request.user},
-                    )
+    valores = [post.get(f'{clave}_{n}') for n in range(1, TURNOS_POR_DIA + 1)]
+    if all(valor is None for valor in valores):
+        return None
+    elegidos = {}
+    for n, valor in enumerate(valores, start=1):
+        tipo = tipos_por_id.get(valor or '')
+        if tipo is None:
+            continue
+        horas = None
+        if tipo.horas_variables:
+            try:
+                horas = Decimal(post.get(f'horas_{clave}_{n}', '').replace(',', '.'))
+            except InvalidOperation:
+                horas = None
+            if horas is None or not horas.is_finite() or not (tipo.horas_minimas <= horas <= tipo.horas_maximas):
+                errores.append(
+                    f'{descripcion}: {tipo.abreviatura} necesita entre {formato_horas(tipo.horas_minimas)} y '
+                    f'{formato_horas(tipo.horas_maximas)} horas. Esa celda no se guardó.'
+                )
+                return None
+        elegidos[tipo.pk] = (tipo, horas)
+    return list(elegidos.values())
+
+
+def _aplicar_turnos(funcionario, fechas, elegidos, usuario):
+    """Deja en cada fecha exactamente los turnos elegidos para el funcionario. Devuelve cuántos cambios hubo."""
+    cambios = 0
+    nuevos = {tipo.pk for tipo, _ in elegidos}
+    for fecha in fechas:
+        actuales = {a.tipo_turno_id: a for a in AsignacionTurno.objects.filter(funcionario=funcionario, fecha=fecha)}
+        for pk, asignacion in actuales.items():
+            if pk not in nuevos:
+                asignacion.delete()
+                cambios += 1
+        for tipo, horas in elegidos:
+            actual = actuales.get(tipo.pk)
+            if actual and actual.horas == horas:
+                continue
+            AsignacionTurno.objects.update_or_create(
+                funcionario=funcionario, fecha=fecha, tipo_turno=tipo,
+                defaults={'horas': horas, 'asignado_por': usuario},
+            )
+            cambios += 1
+    return cambios
+
+
+def _turnos_por_funcionario_y_fecha(asignaciones):
+    """{(funcionario_id, fecha): [turnos ordenados por tipo]} para llenar las celdas."""
+    orden = {pk: i for i, pk in enumerate(TipoTurno.objects.values_list('pk', flat=True))}
+    resultado = defaultdict(list)
+    for asignacion in asignaciones:
+        resultado[(asignacion.funcionario_id, asignacion.fecha)].append(asignacion)
+    for lista in resultado.values():
+        lista.sort(key=lambda a: orden[a.tipo_turno_id])
+    return resultado
+
+
+def _ranuras(turnos):
+    """Los turnos de una celda repartidos en principal y adicional: [primero o None, segundo o None]."""
+    return (list(turnos) + [None] * TURNOS_POR_DIA)[:TURNOS_POR_DIA]
+
+
+def _tipos_elegibles(asignaciones):
+    """Turnos que se pueden elegir: los activos y los que ya estén asignados aunque se hayan desactivado."""
+    usados = {a.tipo_turno_id for a in asignaciones}
+    return list(TipoTurno.objects.filter(Q(activo=True) | Q(pk__in=usados)))
+
+
+def _avisar_errores(request, errores):
+    for error in errores:
+        messages.warning(request, error)
 
 
 def _volver_al_cuadro(fecha, area):
@@ -123,7 +184,7 @@ def _fechas_elegidas(texto):
 
 @administrador_requerido
 def dia(request, anio, mes, dia):
-    """Asigna el turno de cada funcionario en un día, o en toda su semana."""
+    """Asigna los turnos (principal y adicional) de cada funcionario en un día, o en toda su semana."""
     try:
         fecha = datetime.date(anio, mes, dia)
     except ValueError:
@@ -133,18 +194,22 @@ def dia(request, anio, mes, dia):
 
     lunes = fecha - datetime.timedelta(days=fecha.weekday())
     semana = [lunes + datetime.timedelta(days=i) for i in range(7)]
-    asignaciones = AsignacionTurno.objects.filter(funcionario__in=funcionarios, fecha__in=semana).select_related('tipo_turno')
-    por_funcionario = defaultdict(dict)
-    for asignacion in asignaciones:
-        por_funcionario[asignacion.funcionario_id][asignacion.fecha] = asignacion.tipo_turno
-
-    # Turnos que se pueden elegir: los activos y los que ya estén asignados ese día aunque se hayan desactivado.
-    usados_hoy = {t.pk for turnos in por_funcionario.values() for f, t in turnos.items() if f == fecha}
-    tipos = list(TipoTurno.objects.filter(Q(activo=True) | Q(pk__in=usados_hoy)))
+    asignaciones = list(
+        AsignacionTurno.objects.filter(funcionario__in=funcionarios, fecha__in=semana).select_related('tipo_turno')
+    )
+    celdas = _turnos_por_funcionario_y_fecha(asignaciones)
+    tipos = _tipos_elegibles([a for a in asignaciones if a.fecha == fecha])
 
     if request.method == 'POST':
+        tipos_por_id = {str(t.pk): t for t in tipos}
         fechas = semana if request.POST.get('alcance') == 'semana' else [fecha]
-        _guardar_turnos(request, funcionarios, fechas, tipos)
+        errores = []
+        with transaction.atomic():
+            for funcionario in funcionarios:
+                elegidos = _leer_celda(request.POST, f'turno_{funcionario.pk}', tipos_por_id, errores, funcionario.nombre_completo)
+                if elegidos is not None:
+                    _aplicar_turnos(funcionario, fechas, elegidos, request.user)
+        _avisar_errores(request, errores)
         if len(fechas) == 1:
             messages.success(request, f'Turnos del {fecha:%d/%m/%Y} guardados.')
         else:
@@ -154,8 +219,9 @@ def dia(request, anio, mes, dia):
     filas = [
         {
             'funcionario': f,
-            'turno': por_funcionario[f.pk].get(fecha),
-            'semana': [por_funcionario[f.pk].get(d) for d in semana],
+            'clave': f'turno_{f.pk}',
+            'ranuras': _ranuras(celdas[(f.pk, fecha)]),
+            'semana': [celdas[(f.pk, d)] for d in semana],
         }
         for f in funcionarios
     ]
@@ -175,7 +241,7 @@ def dia(request, anio, mes, dia):
 def varios(request):
     """Asigna turnos en varios días elegidos en el cuadro del mes (?fechas=AAAA-MM-DD,AAAA-MM-DD…).
 
-    Muestra una columna por día: cada celda es el turno de un funcionario en ese día y se cambia por separado.
+    Muestra una columna por día: cada celda es el turno principal y el adicional de un funcionario en ese día.
     """
     datos = request.POST if request.method == 'POST' else request.GET
     fechas = _fechas_elegidas(datos.get('fechas', ''))
@@ -186,39 +252,41 @@ def varios(request):
         return redirect('turnos:cuadro')
     funcionarios = list(_funcionarios_activos(area, cargo))
 
-    asignaciones = AsignacionTurno.objects.filter(funcionario__in=funcionarios, fecha__in=fechas).select_related('tipo_turno')
-    actuales = {(a.funcionario_id, a.fecha): a.tipo_turno for a in asignaciones}
-
-    usados = {a.tipo_turno_id for a in asignaciones}
-    tipos = list(TipoTurno.objects.filter(Q(activo=True) | Q(pk__in=usados)))
+    asignaciones = list(
+        AsignacionTurno.objects.filter(funcionario__in=funcionarios, fecha__in=fechas).select_related('tipo_turno')
+    )
+    celdas = _turnos_por_funcionario_y_fecha(asignaciones)
+    tipos = _tipos_elegibles(asignaciones)
 
     if request.method == 'POST':
         tipos_por_id = {str(t.pk): t for t in tipos}
         cambios = 0
+        errores = []
         with transaction.atomic():
             for funcionario in funcionarios:
                 for fecha in fechas:
-                    valor = request.POST.get(f'turno_{funcionario.pk}_{fecha.isoformat()}')
-                    actual = actuales.get((funcionario.pk, fecha))
-                    if valor is None:
-                        continue
-                    if valor == '':
-                        if actual:
-                            AsignacionTurno.objects.filter(funcionario=funcionario, fecha=fecha).delete()
-                            cambios += 1
-                    elif valor in tipos_por_id and (actual is None or str(actual.pk) != valor):
-                        AsignacionTurno.objects.update_or_create(
-                            funcionario=funcionario, fecha=fecha,
-                            defaults={'tipo_turno': tipos_por_id[valor], 'asignado_por': request.user},
-                        )
-                        cambios += 1
+                    descripcion = f'{funcionario.nombre_completo} el {fecha:%d/%m}'
+                    elegidos = _leer_celda(
+                        request.POST, f'turno_{funcionario.pk}_{fecha.isoformat()}', tipos_por_id, errores, descripcion,
+                    )
+                    if elegidos is not None:
+                        cambios += _aplicar_turnos(funcionario, [fecha], elegidos, request.user)
+        _avisar_errores(request, errores)
         messages.success(request, f'Turnos guardados ({cambios} cambio{"s" if cambios != 1 else ""}).')
         return _volver_al_cuadro(fechas[0], area)
 
     filas = [
         {
             'funcionario': f,
-            'celdas': [{'fecha': d, 'turno': actuales.get((f.pk, d))} for d in fechas],
+            'celdas': [
+                {
+                    'fecha': d,
+                    'clave': f'turno_{f.pk}_{d.isoformat()}',
+                    'etiqueta': f'{f.nombre_completo}, {d:%d/%m}',
+                    'ranuras': _ranuras(celdas[(f.pk, d)]),
+                }
+                for d in fechas
+            ],
         }
         for f in funcionarios
     ]

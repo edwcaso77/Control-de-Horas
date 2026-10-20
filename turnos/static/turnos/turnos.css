@@ -144,11 +144,7 @@
 /* Tabla de varios días: una columna por día y una celda por funcionario */
 .filtro-etiqueta { align-self: center; font-weight: 600; }
 
-.tabla-turnos th.columna-dia,
-.tabla-turnos td.celda-dia {
-    width: 86px;
-    text-align: center;
-}
+.tabla-turnos th.columna-dia { text-align: center; }
 
 .columna-fecha { display: block; margin-bottom: 4px; }
 
@@ -158,17 +154,6 @@
     font-size: .8rem;
 }
 
-.celda-turno {
-    width: 76px;
-    padding: 6px 4px;
-    border-radius: 6px;
-    font-weight: 700;
-    text-align: center;
-    cursor: pointer;
-}
-
-.celda-turno.celda-vacia { background: #F4F8FB; color: #9AA4AD; font-weight: 400; }
-.celda-turno option { background: #fff; color: var(--gris-oscuro); }
 
 /* Herramientas de prueba (solo se muestran en local) */
 .herramientas-prueba {
@@ -219,3 +204,42 @@
 
 /* Consulta de un día (menú Calendario) */
 .cantidad-dia { margin: 0 0 10px; color: var(--azul-marino); }
+
+/* Celdas con turno principal, adicional y horas */
+.celda-turnos { white-space: nowrap; }
+
+.selector-ranura {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.selector-ranura + .selector-ranura { margin-top: 4px; }
+
+.selector-turno {
+    width: auto;
+    min-width: 76px;
+    padding: 5px 6px;
+    border-radius: 6px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.selector-turno option { background: #fff; color: var(--gris-oscuro); font-weight: 400; }
+.selector-turno.turno-vacio { background: #F4F8FB; color: #9AA4AD; font-weight: 400; }
+.ranura-adicional .selector-turno { padding: 3px 6px; font-size: .8rem; }
+.ranura-adicional .selector-turno.turno-vacio { border-style: dashed; }
+
+.horas-turno {
+    width: 58px;
+    padding: 4px 6px;
+    border: 1px solid var(--borde);
+    border-radius: 6px;
+    font: inherit;
+    font-size: .85rem;
+}
+
+.horas-turno[hidden] { display: none; }
+
+.semana-dia { display: inline-flex; flex-direction: column; gap: 1px; }
+.ayuda-encabezado { display: block; font-weight: 400; opacity: .85; font-size: .72rem; }

@@ -29,7 +29,7 @@
                     <td><span class="chip" style="background: {{ tipo.color }}; color: {{ tipo.color_texto }}">{{ tipo.abreviatura }}</span></td>
                     <td>{{ tipo.nombre }}</td>
                     <td>{{ tipo.horario }}</td>
-                    <td>{{ tipo.duracion_horas|floatformat:"-1" }}</td>
+                    <td>{% if tipo.horas_variables %}{{ tipo.horas_minimas|floatformat:"-1" }} a {{ tipo.horas_maximas|floatformat:"-1" }}{% else %}{{ tipo.duracion_horas|floatformat:"-1" }}{% endif %}</td>
                     <td>
                         {% if tipo.activo %}<span class="etiqueta etiqueta-activo">Activo</span>
                         {% else %}<span class="etiqueta etiqueta-inactivo">Inactivo</span>{% endif %}
