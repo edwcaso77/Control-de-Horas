@@ -103,3 +103,23 @@ class ConsultaDiaTests(TestCase):
         self.assertEqual(self.client.get(self._url()).status_code, 302)
         self.client.force_login(self.ana.usuario)
         self.assertContains(self.client.get(reverse('calendario:mes'), {'anio': 2026, 'mes': 10}), self._url())
+
+    def _dia_del_mes(self, respuesta, fecha):
+        return next(d for s in respuesta.context['semanas'] for d in s if d['fecha'] == fecha)
+
+    def test_lista_al_pasar_el_mouse_para_administrador(self):
+        self.client.force_login(self.admin.usuario)
+        respuesta = self.client.get(reverse('calendario:mes'), {'anio': 2026, 'mes': 10})
+        dia = self._dia_del_mes(respuesta, self.fecha)
+        self.assertEqual(dia['total'], 2)
+        self.assertEqual([(clave, [a.funcionario.nombres for a in lista]) for _, clave, lista in dia['franjas']],
+                         [('manana', ['Ana']), ('tarde', ['Luis']), ('otros', [])])
+        self.assertContains(respuesta, 'class="lista-flotante')
+        self.assertContains(respuesta, '2 en turno')
+
+    def test_lista_al_pasar_el_mouse_para_funcionario(self):
+        self.client.force_login(self.luis.usuario)
+        respuesta = self.client.get(reverse('calendario:mes'), {'anio': 2026, 'mes': 10})
+        self.assertEqual(self._dia_del_mes(respuesta, self.fecha)['total'], 1)
+        self.assertEqual(self._dia_del_mes(respuesta, self.fecha + datetime.timedelta(days=1))['total'], 0)
+        self.assertNotContains(respuesta, 'Ana Pérez')

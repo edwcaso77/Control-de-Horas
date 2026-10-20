@@ -3,4 +3,32 @@
 {% block dia %}
     <a class="dia-enlace" href="{% url 'calendario:dia' dia.fecha.year dia.fecha.month dia.fecha.day %}"
        aria-label="Ver los turnos del {{ dia.fecha|date:'j \d\e F' }}"></a>
+
+    {% if dia.total %}
+        <span class="dia-total">{{ dia.total }} en turno</span>
+    {% endif %}
+
+    {# Lista que aparece al pasar el mouse sobre el día #}
+    <div class="lista-flotante{% if forloop.parentloop.revcounter <= 2 %} hacia-arriba{% endif %}" role="tooltip">
+        <strong class="lista-fecha">{{ dia.fecha|date:'l j \d\e F'|capfirst }}</strong>
+        {% if dia.total %}
+            {% for titulo, clave, lista in dia.franjas %}
+                    {% if lista or clave != 'otros' %}
+                        <div class="lista-franja lista-{{ clave }}">
+                            <span class="lista-titulo">{{ titulo }} · {{ lista|length }}</span>
+                            {% for a in lista %}
+                                <span class="lista-persona">
+                                    <span class="chip chip-mini" style="background: {{ a.tipo_turno.color }}; color: {{ a.tipo_turno.color_texto }}">{{ a.tipo_turno.abreviatura }}</span>
+                                    {{ a.funcionario.nombre_completo }}
+                                </span>
+                            {% empty %}
+                                <span class="lista-vacia">Nadie</span>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+            {% endfor %}
+        {% else %}
+            <span class="lista-vacia">{% if es_admin %}Sin turnos asignados{% else %}No tiene turno{% endif %}</span>
+        {% endif %}
+    </div>
 {% endblock %}
