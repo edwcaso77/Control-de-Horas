@@ -16,7 +16,7 @@ from funcionarios.models import Area, Cargo, Funcionario
 from funcionarios.permisos import administrador_requerido
 
 from .forms import TipoTurnoForm
-from .franjas import agrupar_por_franja
+from .agrupar import turnos_por_dia
 from .models import AsignacionTurno, TipoTurno
 
 
@@ -41,7 +41,7 @@ def _funcionarios_activos(area, cargo=None):
 
 @administrador_requerido
 def cuadro(request):
-    """Calendario del mes en modo edición: cada día muestra, en las franjas de mañana y tarde, quién tiene turno."""
+    """Calendario del mes en modo edición: cada día muestra quién tiene turno y cuál."""
     contexto = contexto_mes(request)
     area = _area_elegida(request.GET)
 
@@ -52,9 +52,9 @@ def cuadro(request):
         .filter(**({'funcionario__area': area} if area else {}))
         .select_related('funcionario', 'tipo_turno')
     )
-    por_dia = agrupar_por_franja(asignaciones)
+    por_dia = turnos_por_dia(asignaciones)
     for dia in dias:
-        dia['franjas'] = por_dia[dia['fecha']]
+        dia['turnos'] = por_dia[dia['fecha']]
 
     contexto.update({
         'areas': Area.objects.filter(activo=True),

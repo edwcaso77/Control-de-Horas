@@ -74,23 +74,23 @@ class ConsultaDiaTests(TestCase):
         return reverse('calendario:dia', args=[fecha.year, fecha.month, fecha.day])
 
     def _nombres(self, respuesta):
-        return {clase: [a.funcionario.nombres for a in lista] for _, clase, lista in respuesta.context['franjas']}
+        return [a.funcionario.nombres for a in respuesta.context['turnos']]
 
-    def test_administrador_ve_solo_ese_dia_por_franja(self):
+    def test_administrador_ve_solo_ese_dia(self):
         self.client.force_login(self.admin.usuario)
         respuesta = self.client.get(self._url())
-        self.assertEqual(self._nombres(respuesta), {'manana': ['Ana'], 'tarde': ['Luis'], 'otros': []})
+        self.assertEqual(self._nombres(respuesta), ['Ana', 'Luis'])
         self.assertContains(respuesta, 'Editar turnos de este día')
 
     def test_filtro_por_area(self):
         self.client.force_login(self.admin.usuario)
         respuesta = self.client.get(self._url(), {'area': self.otra_area.pk})
-        self.assertEqual(self._nombres(respuesta), {'manana': [], 'tarde': ['Luis'], 'otros': []})
+        self.assertEqual(self._nombres(respuesta), ['Luis'])
 
     def test_funcionario_solo_ve_su_turno(self):
         self.client.force_login(self.ana.usuario)
         respuesta = self.client.get(self._url())
-        self.assertEqual(self._nombres(respuesta), {'manana': ['Ana'], 'tarde': [], 'otros': []})
+        self.assertEqual(self._nombres(respuesta), ['Ana'])
         self.assertNotContains(respuesta, 'Luis')
         self.assertNotContains(respuesta, 'Editar turnos de este día')
 
@@ -111,15 +111,13 @@ class ConsultaDiaTests(TestCase):
         self.client.force_login(self.admin.usuario)
         respuesta = self.client.get(reverse('calendario:mes'), {'anio': 2026, 'mes': 10})
         dia = self._dia_del_mes(respuesta, self.fecha)
-        self.assertEqual(dia['total'], 2)
-        self.assertEqual([(clave, [a.funcionario.nombres for a in lista]) for _, clave, lista in dia['franjas']],
-                         [('manana', ['Ana']), ('tarde', ['Luis']), ('otros', [])])
+        self.assertEqual([a.funcionario.nombres for a in dia['turnos']], ['Ana', 'Luis'])
         self.assertContains(respuesta, 'class="lista-flotante')
         self.assertContains(respuesta, '2 en turno')
 
     def test_lista_al_pasar_el_mouse_para_funcionario(self):
         self.client.force_login(self.luis.usuario)
         respuesta = self.client.get(reverse('calendario:mes'), {'anio': 2026, 'mes': 10})
-        self.assertEqual(self._dia_del_mes(respuesta, self.fecha)['total'], 1)
-        self.assertEqual(self._dia_del_mes(respuesta, self.fecha + datetime.timedelta(days=1))['total'], 0)
+        self.assertEqual(len(self._dia_del_mes(respuesta, self.fecha)['turnos']), 1)
+        self.assertEqual(len(self._dia_del_mes(respuesta, self.fecha + datetime.timedelta(days=1))['turnos']), 0)
         self.assertNotContains(respuesta, 'Ana Pérez')

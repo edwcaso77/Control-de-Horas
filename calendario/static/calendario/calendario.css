@@ -209,27 +209,8 @@
 
 .lista-fecha { color: var(--azul-marino); font-size: .85rem; }
 
-.lista-franja {
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-    padding: 6px 8px;
-    border-radius: 6px;
-}
-
-.lista-manana { background: rgba(110, 198, 217, .16); }
-.lista-tarde { background: rgba(31, 42, 92, .07); }
-.lista-otros { background: #F2F2F2; }
-
-.lista-titulo {
-    font-size: .65rem;
-    font-weight: 700;
-    letter-spacing: .05em;
-    text-transform: uppercase;
-    color: var(--texto-suave);
-}
-
 .lista-persona { display: flex; align-items: center; gap: 6px; font-size: .82rem; }
+.lista-persona small { margin-left: auto; padding-left: 8px; color: var(--texto-suave); white-space: nowrap; }
 .lista-vacia { color: var(--texto-suave); font-size: .82rem; }
 
 .lista-flotante .chip {

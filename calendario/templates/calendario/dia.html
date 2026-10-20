@@ -29,48 +29,36 @@
     </form>
 {% endif %}
 
-{% if not total %}
+{% if not turnos %}
     <div class="mensaje">
         {% if es_admin %}No hay turnos asignados este día{% if area %} en {{ area }}{% endif %}.
         {% else %}No tiene turno asignado este día.{% endif %}
     </div>
 {% else %}
-    <div class="franjas-dia">
-        {% for titulo, clase, asignaciones in franjas %}
-            {% if asignaciones or clase != 'otros' %}
-                <section class="franja-dia franja-{{ clase }}">
-                    <h2>{{ titulo }} <span class="franja-cantidad">{{ asignaciones|length }}</span></h2>
-                    {% if asignaciones %}
-                        <div class="tabla-contenedor">
-                            <table class="tabla">
-                                <thead>
-                                    <tr>
-                                        <th>Turno</th>
-                                        <th>Funcionario</th>
-                                        <th>Cargo</th>
-                                        <th>Área</th>
-                                        <th>Horario</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for a in asignaciones %}
-                                        <tr>
-                                            <td><span class="chip" style="background: {{ a.tipo_turno.color }}; color: {{ a.tipo_turno.color_texto }}" title="{{ a.tipo_turno.nombre }}">{{ a.tipo_turno.abreviatura }}</span> {{ a.tipo_turno.nombre }}</td>
-                                            <td>{{ a.funcionario.apellidos }}, {{ a.funcionario.nombres }}</td>
-                                            <td>{{ a.funcionario.cargo|default:"—" }}</td>
-                                            <td>{{ a.funcionario.area|default:"—" }}</td>
-                                            <td>{{ a.tipo_turno.horario }}</td>
-                                        </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                    {% else %}
-                        <p class="ayuda">Nadie en esta franja.</p>
-                    {% endif %}
-                </section>
-            {% endif %}
-        {% endfor %}
+    <p class="cantidad-dia"><strong>{{ turnos|length }}</strong> en turno</p>
+    <div class="tabla-contenedor">
+        <table class="tabla">
+            <thead>
+                <tr>
+                    <th>Turno</th>
+                    <th>Horario</th>
+                    <th>Funcionario</th>
+                    <th>Cargo</th>
+                    <th>Área</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for a in turnos %}
+                    <tr>
+                        <td><span class="chip" style="background: {{ a.tipo_turno.color }}; color: {{ a.tipo_turno.color_texto }}" title="{{ a.tipo_turno.nombre }}">{{ a.tipo_turno.abreviatura }}</span> {{ a.tipo_turno.nombre }}</td>
+                        <td>{{ a.tipo_turno.horario }}</td>
+                        <td>{{ a.funcionario.apellidos }}, {{ a.funcionario.nombres }}</td>
+                        <td>{{ a.funcionario.cargo|default:"—" }}</td>
+                        <td>{{ a.funcionario.area|default:"—" }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
 {% endif %}
 {% endblock %}

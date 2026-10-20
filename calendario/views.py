@@ -6,7 +6,7 @@ from django.shortcuts import render
 
 from funcionarios.models import Area
 from funcionarios.permisos import es_administrador
-from turnos.franjas import agrupar_por_franja
+from turnos.agrupar import turnos_por_dia
 from turnos.models import AsignacionTurno
 
 from .utils import contexto_mes
@@ -29,26 +29,15 @@ def calendario_mes(request):
     contexto = contexto_mes(request)
     dias = [dia for semana in contexto['semanas'] for dia in semana]
     # Para la lista que aparece al pasar el mouse sobre cada día.
-    por_dia = agrupar_por_franja(_turnos_visibles(request, fecha__range=(dias[0]['fecha'], dias[-1]['fecha'])))
+    por_dia = turnos_por_dia(_turnos_visibles(request, fecha__range=(dias[0]['fecha'], dias[-1]['fecha'])))
     for dia in dias:
-        franjas = por_dia[dia['fecha']]
-        dia['franjas'] = _franjas_en_orden(franjas)
-        dia['total'] = sum(len(lista) for lista in franjas.values())
+        dia['turnos'] = por_dia[dia['fecha']]
     return render(request, 'calendario/mes.html', contexto)
-
-
-def _franjas_en_orden(franjas):
-    """[(título, clave, turnos), …] para mostrar Mañana, Tarde y Otros en ese orden."""
-    return [
-        ('Mañana', 'manana', franjas['manana']),
-        ('Tarde', 'tarde', franjas['tarde']),
-        ('Otros', 'otros', franjas['otros']),
-    ]
 
 
 @login_required
 def dia(request, anio, mes, dia):
-    """Consulta de los turnos de un día, por franjas. El funcionario que no es administrador solo ve el suyo."""
+    """Consulta de los turnos de un día. El funcionario que no es administrador solo ve el suyo."""
     try:
         fecha = datetime.date(anio, mes, dia)
     except ValueError:
@@ -63,13 +52,12 @@ def dia(request, anio, mes, dia):
         if area:
             asignaciones = asignaciones.filter(funcionario__area=area)
 
-    franjas = agrupar_por_franja(asignaciones)[fecha]
+    turnos = turnos_por_dia(asignaciones)[fecha]
     return render(request, 'calendario/dia.html', {
         'fecha': fecha,
         'anterior': fecha - datetime.timedelta(days=1),
         'siguiente': fecha + datetime.timedelta(days=1),
-        'franjas': _franjas_en_orden(franjas),
-        'total': sum(len(lista) for lista in franjas.values()),
+        'turnos': turnos,
         'areas': Area.objects.filter(activo=True) if admin else [],
         'area': area,
     })

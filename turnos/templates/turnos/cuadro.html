@@ -26,7 +26,7 @@
                 Primero cree los turnos en <a href="{% url 'turnos:tipos' %}">Tipos de turno</a>.
             </span>
         {% endfor %}
-        <span class="leyenda-ayuda">Cada día muestra quién trabaja en la mañana y en la tarde · clic en el día para asignar sus turnos · marque la casilla para elegir varios días · clic en «Lunes», «Martes»… para elegir todos esos días del mes.</span>
+        <span class="leyenda-ayuda">Cada día muestra quién tiene turno y cuál · clic en el día para asignar sus turnos · marque la casilla para elegir varios días · clic en «Lunes», «Martes»… para elegir todos esos días del mes.</span>
     </div>
 
     {% if modo_local %}
@@ -50,12 +50,13 @@
     </label>
     <a class="dia-enlace" href="{% url 'turnos:dia' dia.fecha.year dia.fecha.month dia.fecha.day %}{% if area %}?area={{ area.pk }}{% endif %}"
        aria-label="Asignar turnos del {{ dia.fecha|date:'j \d\e F' }}"></a>
-    <div class="franjas">
-        {% include 'turnos/_franja.html' with titulo='Mañana' clase='manana' asignaciones=dia.franjas.manana %}
-        {% include 'turnos/_franja.html' with titulo='Tarde' clase='tarde' asignaciones=dia.franjas.tarde %}
-        {% if dia.franjas.otros %}
-            {% include 'turnos/_franja.html' with titulo='Otros' clase='otros' asignaciones=dia.franjas.otros %}
-        {% endif %}
+    <div class="personas-dia">
+        {% for a in dia.turnos %}
+            <span class="persona" style="background: {{ a.tipo_turno.color }}; color: {{ a.tipo_turno.color_texto }}"
+                  title="{{ a.funcionario.nombre_completo }} · {{ a.tipo_turno.nombre }} {{ a.tipo_turno.horario }}">
+                <b>{{ a.tipo_turno.abreviatura }}</b> {{ a.funcionario.nombre_corto }}
+            </span>
+        {% endfor %}
     </div>
 {% endblock %}
 

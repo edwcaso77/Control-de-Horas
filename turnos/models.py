@@ -9,10 +9,6 @@ from django.db.models import F
 from funcionarios.models import Funcionario
 
 
-# Los turnos que empiezan antes de esta hora se muestran en la franja de la mañana; los demás, en la tarde.
-MEDIODIA = datetime.time(12, 0)
-
-
 class TipoTurno(models.Model):
     """Turno que el administrador define: Mañana, Tarde, Noche, Descanso…"""
 
@@ -43,13 +39,6 @@ class TipoTurno(models.Model):
         if self.hora_inicio is None:
             return 'Sin horario'
         return f'{self.hora_inicio:%H:%M} – {self.hora_fin:%H:%M}'
-
-    @property
-    def franja(self):
-        """'manana', 'tarde' u 'otros' (turnos sin horario), según la hora de inicio."""
-        if self.hora_inicio is None:
-            return 'otros'
-        return 'manana' if self.hora_inicio < MEDIODIA else 'tarde'
 
     @property
     def duracion_horas(self):
