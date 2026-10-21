@@ -350,3 +350,63 @@ class TurnosEspecialesTests(DatosCuadroMixin, TestCase):
         self.assertEqual([a.tipo_turno.abreviatura for a in dia['turnos']], ['M', 'HC'])
         consulta = self.client.get(reverse('calendario:dia', args=[2026, 10, 21]))
         self.assertContains(consulta, '3 h')
+
+
+class HoraDeInicioAlAsignarTests(DatosCuadroMixin, TestCase):
+    """Extramural: además de las horas, se escribe a qué hora empieza cada vez."""
+
+    def setUp(self):
+        super().setUp()
+        self.extramural = TipoTurno.objects.create(
+            nombre='Extramural', abreviatura='1-12', horas_variables=True, pide_hora_inicio=True,
+            horas_minimas=Decimal('1'), horas_maximas=Decimal('12'),
+        )
+        self.url = reverse('turnos:dia', args=[self.fecha.year, self.fecha.month, self.fecha.day])
+        self.clave = f'turno_{self.ana.pk}'
+
+    def test_guarda_hora_de_inicio_y_calcula_el_fin(self):
+        self.client.post(self.url, {
+            f'{self.clave}_1': self.extramural.pk, f'horas_{self.clave}_1': '6', f'inicio_{self.clave}_1': '07:00',
+            'alcance': 'dia',
+        })
+        asignacion = AsignacionTurno.objects.get(funcionario=self.ana)
+        self.assertEqual(asignacion.hora_inicio, datetime.time(7))
+        self.assertEqual(asignacion.hora_fin, datetime.time(13))
+        self.assertEqual(asignacion.horario, '07:00 – 13:00 (6 h)')
+
+    def test_termina_al_dia_siguiente(self):
+        asignacion = AsignacionTurno(
+            funcionario=self.ana, fecha=self.fecha, tipo_turno=self.extramural, horas=Decimal('8'), hora_inicio=datetime.time(20),
+        )
+        self.assertEqual(asignacion.horario, '20:00 – 04:00 (8 h)')
+
+    def test_sin_hora_de_inicio_no_se_guarda(self):
+        respuesta = self.client.post(self.url, {
+            f'{self.clave}_1': self.extramural.pk, f'horas_{self.clave}_1': '6', f'inicio_{self.clave}_1': '',
+            'alcance': 'dia',
+        }, follow=True)
+        self.assertContains(respuesta, '1-12 necesita la hora de inicio')
+        self.assertFalse(AsignacionTurno.objects.exists())
+
+    def test_cambiar_solo_la_hora_de_inicio_actualiza(self):
+        AsignacionTurno.objects.create(
+            funcionario=self.ana, fecha=self.fecha, tipo_turno=self.extramural, horas=Decimal('6'), hora_inicio=datetime.time(7),
+        )
+        self.client.post(self.url, {
+            f'{self.clave}_1': self.extramural.pk, f'horas_{self.clave}_1': '6', f'inicio_{self.clave}_1': '09:30',
+            'alcance': 'dia',
+        })
+        self.assertEqual(AsignacionTurno.objects.get(funcionario=self.ana).hora_inicio, datetime.time(9, 30))
+
+    def test_la_pantalla_muestra_la_hora_guardada(self):
+        AsignacionTurno.objects.create(
+            funcionario=self.ana, fecha=self.fecha, tipo_turno=self.extramural, horas=Decimal('6'), hora_inicio=datetime.time(7),
+        )
+        self.assertContains(self.client.get(self.url), f'name="inicio_{self.clave}_1" class="inicio-turno"\n           value="07:00"')
+        consulta = self.client.get(reverse('calendario:dia', args=[2026, 10, 21]))
+        self.assertContains(consulta, '07:00 – 13:00 (6 h)')
+
+    def test_solo_turnos_de_horas_variables_piden_hora_de_inicio(self):
+        tipo = TipoTurno(nombre='Fijo', abreviatura='F', hora_inicio=datetime.time(8), hora_fin=datetime.time(12), pide_hora_inicio=True)
+        tipo.full_clean()
+        self.assertFalse(tipo.pide_hora_inicio)

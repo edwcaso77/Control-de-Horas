@@ -34,6 +34,7 @@ class TipoTurno(models.Model):
     - Horario fijo: hora de inicio y de fin (C1 05:00–14:00).
     - Horario partido: además, un segundo bloque (A 08:00–12:00 y 14:00–18:00).
     - Horas variables: sin horario; las horas se escriben al asignarlo, entre un mínimo y un máximo (HC, extramural).
+      Si pide hora de inicio, al asignarlo también se escribe a qué hora empieza (extramural).
     Un turno sin horario y sin horas variables sirve para marcas como Descanso.
     """
 
@@ -54,6 +55,10 @@ class TipoTurno(models.Model):
     horas_maximas = models.DecimalField(
         'horas máximas', max_digits=4, decimal_places=1, null=True, blank=True,
         validators=[MinValueValidator(Decimal('0.5')), MaxValueValidator(Decimal('24'))],
+    )
+    pide_hora_inicio = models.BooleanField(
+        'pide hora de inicio al asignar', default=False,
+        help_text='Para turnos de horas variables cuya hora de inicio cambia cada vez (por ejemplo, extramural).',
     )
     color = models.CharField(
         'color', max_length=7, default='#0770B8',
@@ -85,8 +90,9 @@ class TipoTurno(models.Model):
                 errores['hora_fin_2'] = 'Indique el inicio y el fin del segundo bloque, o deje ambos vacíos.'
             elif self.hora_inicio_2 is not None and self.hora_inicio is None:
                 errores['hora_inicio_2'] = 'Para usar un segundo bloque, primero indique el horario del primero.'
-            # Los rangos de horas solo aplican a turnos de horas variables.
+            # Los rangos de horas y la hora de inicio al asignar solo aplican a turnos de horas variables.
             self.horas_minimas = self.horas_maximas = None
+            self.pide_hora_inicio = False
         if errores:
             raise ValidationError(errores)
 
@@ -133,6 +139,10 @@ class AsignacionTurno(models.Model):
         'horas', max_digits=4, decimal_places=1, null=True, blank=True,
         help_text='Solo para turnos de horas variables (HC, extramural).',
     )
+    hora_inicio = models.TimeField(
+        'hora de inicio', null=True, blank=True,
+        help_text='Solo para turnos que piden la hora de inicio al asignarlos (extramural).',
+    )
     asignado_por = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
         related_name='+', verbose_name='asignado por',
@@ -164,8 +174,20 @@ class AsignacionTurno(models.Model):
         return self.tipo_turno.abreviatura
 
     @property
+    def hora_fin(self):
+        """Hora en que termina, calculada con la hora de inicio y las horas asignadas."""
+        if self.hora_inicio is None or self.horas is None:
+            return None
+        inicio = datetime.datetime.combine(datetime.date.min, self.hora_inicio)
+        return (inicio + datetime.timedelta(hours=float(self.horas))).time()
+
+    @property
     def horario(self):
-        """Horario de este turno: el del tipo, o las horas asignadas si es de horas variables."""
+        """Horario de este turno: el del tipo o, si es de horas variables, las horas (y la hora de inicio si la tiene)."""
         if self.tipo_turno.horas_variables:
-            return f'{formato_horas(self.horas)} h' if self.horas is not None else 'Sin horas'
+            if self.horas is None:
+                return 'Sin horas'
+            if self.hora_inicio is not None:
+                return f'{self.hora_inicio:%H:%M} – {self.hora_fin:%H:%M} ({formato_horas(self.horas)} h)'
+            return f'{formato_horas(self.horas)} h'
         return self.tipo_turno.horario

@@ -85,11 +85,11 @@ MAX_DIAS_SELECCIONADOS = 62
 
 
 def _leer_celda(post, clave, tipos_por_id, errores, descripcion):
-    """Lee los turnos de una celda del formulario: «clave_1» (principal), «clave_2» (adicional)
-    y, para los turnos de horas variables, «horas_clave_N».
+    """Lee los turnos de una celda del formulario: «clave_1» (principal), «clave_2» (adicional),
+    para los turnos de horas variables «horas_clave_N» y, si piden hora de inicio, «inicio_clave_N».
 
-    Devuelve [(tipo, horas), …] sin repetir tipos, o None si la celda no vino en el formulario
-    o tiene horas fuera de rango (en ese caso no se cambia nada de esa celda y se anota el error).
+    Devuelve [(tipo, horas, hora_inicio), …] sin repetir tipos, o None si la celda no vino en el formulario
+    o tiene datos inválidos (en ese caso no se cambia nada de esa celda y se anota el error).
     """
     valores = [post.get(f'{clave}_{n}') for n in range(1, TURNOS_POR_DIA + 1)]
     if all(valor is None for valor in valores):
@@ -99,7 +99,13 @@ def _leer_celda(post, clave, tipos_por_id, errores, descripcion):
         tipo = tipos_por_id.get(valor or '')
         if tipo is None:
             continue
-        horas = None
+        horas = inicio = None
+        if tipo.pide_hora_inicio:
+            try:
+                inicio = datetime.time.fromisoformat(post.get(f'inicio_{clave}_{n}', '').strip())
+            except ValueError:
+                errores.append(f'{descripcion}: {tipo.abreviatura} necesita la hora de inicio. Esa celda no se guardó.')
+                return None
         if tipo.horas_variables:
             try:
                 horas = Decimal(post.get(f'horas_{clave}_{n}', '').replace(',', '.'))
@@ -111,27 +117,27 @@ def _leer_celda(post, clave, tipos_por_id, errores, descripcion):
                     f'{formato_horas(tipo.horas_maximas)} horas. Esa celda no se guardó.'
                 )
                 return None
-        elegidos[tipo.pk] = (tipo, horas)
+        elegidos[tipo.pk] = (tipo, horas, inicio)
     return list(elegidos.values())
 
 
 def _aplicar_turnos(funcionario, fechas, elegidos, usuario):
     """Deja en cada fecha exactamente los turnos elegidos para el funcionario. Devuelve cuántos cambios hubo."""
     cambios = 0
-    nuevos = {tipo.pk for tipo, _ in elegidos}
+    nuevos = {tipo.pk for tipo, _, _ in elegidos}
     for fecha in fechas:
         actuales = {a.tipo_turno_id: a for a in AsignacionTurno.objects.filter(funcionario=funcionario, fecha=fecha)}
         for pk, asignacion in actuales.items():
             if pk not in nuevos:
                 asignacion.delete()
                 cambios += 1
-        for tipo, horas in elegidos:
+        for tipo, horas, inicio in elegidos:
             actual = actuales.get(tipo.pk)
-            if actual and actual.horas == horas:
+            if actual and actual.horas == horas and actual.hora_inicio == inicio:
                 continue
             AsignacionTurno.objects.update_or_create(
                 funcionario=funcionario, fecha=fecha, tipo_turno=tipo,
-                defaults={'horas': horas, 'asignado_por': usuario},
+                defaults={'horas': horas, 'hora_inicio': inicio, 'asignado_por': usuario},
             )
             cambios += 1
     return cambios

@@ -241,5 +241,16 @@
 
 .horas-turno[hidden] { display: none; }
 
+.inicio-turno {
+    width: 118px;
+    padding: 4px 6px;
+    border: 1px solid var(--borde);
+    border-radius: 6px;
+    font: inherit;
+    font-size: .85rem;
+}
+
+.inicio-turno[hidden] { display: none; }
+
 .semana-dia { display: inline-flex; flex-direction: column; gap: 1px; }
 .ayuda-encabezado { display: block; font-weight: 400; opacity: .85; font-size: .72rem; }

@@ -10,7 +10,7 @@ class TipoTurnoForm(forms.ModelForm):
         fields = [
             'nombre', 'abreviatura', 'color', 'horas_variables',
             'hora_inicio', 'hora_fin', 'hora_inicio_2', 'hora_fin_2',
-            'horas_minimas', 'horas_maximas',
+            'horas_minimas', 'horas_maximas', 'pide_hora_inicio',
         ]
         widgets = {
             'hora_inicio': forms.TimeInput(attrs={'type': 'time'}, format='%H:%M'),

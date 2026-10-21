@@ -1,9 +1,11 @@
 // Selectores de turno de las pantallas de asignación (un día y varios días).
-// Cada selector pinta el color de su turno y muestra la casilla de horas cuando el turno es de horas variables.
+// Cada selector pinta el color de su turno y muestra la casilla de horas cuando el turno es de horas variables,
+// y la de hora de inicio cuando además la pide (extramural).
 (function () {
     function preparar(selector) {
         const opcion = selector.selectedOptions[0];
         const horas = selector.parentElement.querySelector('.horas-turno');
+        const inicio = selector.parentElement.querySelector('.inicio-turno');
 
         selector.style.background = opcion && opcion.dataset.color ? opcion.dataset.color : '';
         selector.style.color = opcion && opcion.dataset.texto ? opcion.dataset.texto : '';
@@ -17,6 +19,10 @@
             horas.max = opcion.dataset.max;
             if (!horas.value) horas.value = opcion.dataset.min;
         }
+
+        const pideInicio = !!(opcion && opcion.hasAttribute('data-inicio'));
+        inicio.hidden = !pideInicio;
+        inicio.required = pideInicio;
     }
 
     function elegir(selector, valor) {
