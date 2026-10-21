@@ -24,8 +24,8 @@
                 <th>Fecha</th>
                 <th>Funcionario</th>
                 <th>Turno</th>
-                <th>Horario extra</th>
-                <th>Horas</th>
+                <th>Solicitado</th>
+                <th>Aprobado</th>
                 <th>Motivo</th>
                 <th>Autorizó</th>
                 <th>Estado</th>
@@ -43,8 +43,12 @@
                             <small class="ayuda">{{ s.turno.horario }}</small>
                         {% else %}—{% endif %}
                     </td>
-                    <td>{{ s.horario }}</td>
-                    <td><strong>{{ s.horas_texto }}</strong></td>
+                    <td>{{ s.horario_solicitado }}<br><small class="ayuda">{{ s.horas_solicitadas_texto }}</small></td>
+                    <td>
+                        {% if s.estado == 'aprobada' %}
+                            <strong>{{ s.horas_texto }}</strong>{% if s.tiempo_modificado %}<br><small class="ayuda">{{ s.horario }} · editado</small>{% endif %}
+                        {% else %}—{% endif %}
+                    </td>
                     <td>{{ s.motivo }}</td>
                     <td>{{ s.autorizado_por }}</td>
                     <td>
@@ -53,7 +57,7 @@
                     </td>
                     <td>
                         <a class="boton boton-pequeno{% if s.pendiente %} boton-primario{% endif %}" href="{% url 'horas_extra:revisar' s.pk %}">
-                            {% if s.pendiente %}Revisar{% else %}Ver{% endif %}
+                            {% if s.pendiente %}Revisar{% else %}Ver / editar{% endif %}
                         </a>
                     </td>
                 </tr>

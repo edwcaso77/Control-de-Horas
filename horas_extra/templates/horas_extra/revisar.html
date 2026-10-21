@@ -38,19 +38,31 @@
         <div class="mensaje mensaje-error">{{ error }}</div>
     {% endfor %}
 
+    <div class="tiempo-solicitado">
+        <span class="tiempo-etiqueta">Solicitó</span>
+        <strong>{{ solicitud.horario_solicitado }}</strong>
+        <span class="tiempo-total">{{ solicitud.horas_solicitadas_texto }}</span>
+    </div>
+
     <fieldset class="seccion-formulario">
-        <legend>Horario de la hora extra</legend>
-        <p class="ayuda">Si el horario no es correcto, corríjalo antes de aprobar.</p>
+        <legend>Tiempo aprobado</legend>
+        <p class="ayuda">Viene con lo que solicitó el funcionario. Edítelo si va a aceptar un tiempo distinto.</p>
         <div class="rejilla">
             {% include 'includes/campo.html' with campo=form.hora_inicio %}
             {% include 'includes/campo.html' with campo=form.hora_fin %}
         </div>
-        <p class="ayuda">Total: <strong id="total-horas">{{ solicitud.horas_texto }}</strong></p>
+        <p class="ayuda">
+            Total aprobado: <strong id="total-horas">{{ solicitud.horas_texto }}</strong>
+            <button type="button" class="boton boton-pequeno" id="restablecer-tiempo"
+                    data-inicio="{{ solicitud.hora_inicio_solicitada|time:'H:i' }}" data-fin="{{ solicitud.hora_fin_solicitada|time:'H:i' }}">
+                Volver a lo solicitado
+            </button>
+        </p>
         {% include 'includes/campo.html' with campo=form.comentario %}
     </fieldset>
 
     <div class="botones-formulario">
-        <button type="submit" name="decision" value="aprobada" class="boton boton-verde">Aprobar</button>
+        <button type="submit" name="decision" value="aprobada" class="boton boton-verde">{% if solicitud.estado == 'aprobada' %}Guardar tiempo aprobado{% else %}Aprobar{% endif %}</button>
         <button type="submit" name="decision" value="rechazada" class="boton boton-peligro"
                 onclick="return confirm('¿Rechazar esta solicitud de hora extra?')">Rechazar</button>
         <a href="{% url 'horas_extra:lista' %}" class="boton">Cancelar</a>
@@ -58,4 +70,14 @@
 </form>
 
 <script src="{% static 'horas_extra/total_horas.js' %}"></script>
+<script>
+    // «Volver a lo solicitado» deja el tiempo aprobado igual al que pidió el funcionario.
+    document.getElementById('restablecer-tiempo').addEventListener('click', function () {
+        const desde = document.querySelector('input[name="hora_inicio"]');
+        const hasta = document.querySelector('input[name="hora_fin"]');
+        desde.value = this.dataset.inicio;
+        hasta.value = this.dataset.fin;
+        hasta.dispatchEvent(new Event('input'));
+    });
+</script>
 {% endblock %}

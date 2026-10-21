@@ -80,8 +80,8 @@
                 <thead>
                     <tr>
                         <th>Turno</th>
-                        <th>Horario extra</th>
-                        <th>Horas</th>
+                        <th>Solicitado</th>
+                        <th>Aprobado</th>
                         <th>Motivo</th>
                         <th>Autorizó</th>
                         <th>Estado</th>
@@ -92,8 +92,12 @@
                     {% for s in mis_solicitudes %}
                         <tr>
                             <td>{% if s.turno %}{{ s.turno.etiqueta }}{% else %}—{% endif %}</td>
-                            <td>{{ s.horario }}</td>
-                            <td>{{ s.horas_texto }}</td>
+                            <td>{{ s.horario_solicitado }} <small class="ayuda">({{ s.horas_solicitadas_texto }})</small></td>
+                            <td>
+                                {% if s.estado == 'aprobada' %}
+                                    <strong>{{ s.horas_texto }}</strong>{% if s.tiempo_modificado %} <small class="ayuda">({{ s.horario }})</small>{% endif %}
+                                {% else %}—{% endif %}
+                            </td>
                             <td>{{ s.motivo }}</td>
                             <td>{{ s.autorizado_por }}</td>
                             <td>

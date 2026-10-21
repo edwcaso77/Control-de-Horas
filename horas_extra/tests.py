@@ -150,3 +150,38 @@ class SolicitudHoraExtraTests(TestCase):
         self.assertEqual(self.client.get(reverse('horas_extra:lista')).status_code, 403)
         self.assertEqual(self.client.get(reverse('horas_extra:revisar', args=[SolicitudHoraExtra.objects.get().pk])).status_code, 403)
         self.assertNotContains(self.client.get(reverse('calendario:mes')), 'Horas extra')
+
+    def test_lo_solicitado_se_conserva_al_editar_el_tiempo_aprobado(self, *_):
+        self.client.force_login(self.ana.usuario)
+        self._solicitar()  # 14:00 – 16:30 (2.5 h)
+        solicitud = SolicitudHoraExtra.objects.get()
+        self.assertEqual((solicitud.horario_solicitado, solicitud.tiempo_modificado), ('14:00 – 16:30', False))
+
+        self.client.force_login(self.admin.usuario)
+        revision = self.client.get(reverse('horas_extra:revisar', args=[solicitud.pk]))
+        self.assertContains(revision, 'Tiempo aprobado')
+        self.assertContains(revision, '14:00 – 16:30')
+        self.client.post(reverse('horas_extra:revisar', args=[solicitud.pk]), {
+            'hora_inicio': '14:00', 'hora_fin': '15:30', 'decision': 'aprobada',
+        })
+        solicitud.refresh_from_db()
+        self.assertEqual((solicitud.horario_solicitado, solicitud.horas_solicitadas), ('14:00 – 16:30', 2.5))
+        self.assertEqual((solicitud.horario, solicitud.horas, solicitud.tiempo_modificado), ('14:00 – 15:30', 1.5, True))
+
+        listado = self.client.get(reverse('horas_extra:lista'), {'estado': 'aprobadas'})
+        self.assertContains(listado, '2.5 h')
+        self.assertContains(listado, '1.5 h')
+        self.assertContains(listado, 'editado')
+
+        # Ya aprobada, se puede volver a editar el tiempo aprobado.
+        self.assertContains(self.client.get(reverse('horas_extra:revisar', args=[solicitud.pk])), 'Guardar tiempo aprobado')
+        self.client.post(reverse('horas_extra:revisar', args=[solicitud.pk]), {
+            'hora_inicio': '14:00', 'hora_fin': '16:00', 'decision': 'aprobada',
+        })
+        solicitud.refresh_from_db()
+        self.assertEqual((solicitud.horas, solicitud.horas_solicitadas), (2, 2.5))
+
+        self.client.force_login(self.ana.usuario)
+        dia = self.client.get(reverse('calendario:dia', args=[2026, 10, 20]))
+        self.assertContains(dia, '2.5 h')
+        self.assertContains(dia, '<strong>2 h</strong>')

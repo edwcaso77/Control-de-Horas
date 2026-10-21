@@ -422,3 +422,20 @@ input:focus, select:focus {
 
 .datos-solicitud dt { font-weight: 700; color: var(--azul-marino); }
 .datos-solicitud dd { margin: 0; }
+
+/* Tiempo solicitado por el funcionario, en la revisión de una hora extra */
+.tiempo-solicitado {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    max-width: 900px;
+    margin: 0 0 14px;
+    padding: 10px 16px;
+    border-left: 4px solid var(--azul-claro);
+    border-radius: 6px;
+    background: #EAF7FA;
+}
+
+.tiempo-etiqueta { font-size: .75rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--texto-suave); }
+.tiempo-total { padding: 1px 9px; border-radius: 999px; background: var(--azul-marino); color: #fff; font-size: .8rem; font-weight: 600; }
