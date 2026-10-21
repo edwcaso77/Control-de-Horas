@@ -2,6 +2,7 @@ import datetime
 
 from django.conf import settings
 from django.db import models
+from django.db.models import Q
 
 from funcionarios.models import Funcionario
 from turnos.models import AsignacionTurno, formato_horas
@@ -30,7 +31,14 @@ class SolicitudHoraExtra(models.Model):
     hora_inicio = models.TimeField('desde')
     hora_fin = models.TimeField('hasta', help_text='Si termina después de medianoche, escriba la hora tal cual (por ejemplo 01:00).')
     motivo = models.TextField('motivo', max_length=500)
-    autorizado_por = models.CharField('autorizado por', max_length=120, help_text='Nombre de quien autorizó la hora extra.')
+    # Administrador que autoriza: solo él ve y revisa la solicitud.
+    administrador = models.ForeignKey(
+        Funcionario, on_delete=models.PROTECT, null=True, blank=True,
+        related_name='horas_extra_por_autorizar', verbose_name='administrador que autoriza',
+        limit_choices_to={'es_administrador': True},
+    )
+    # Solicitudes antiguas: el nombre de quien autorizó escrito a mano (las ven todos los administradores).
+    autorizado_por = models.CharField('autorizado por (texto)', max_length=120, blank=True)
     estado = models.CharField('estado', max_length=10, choices=Estado.choices, default=Estado.PENDIENTE)
     comentario = models.TextField('comentario del administrador', max_length=500, blank=True)
     revisado_por = models.ForeignKey(
@@ -100,3 +108,16 @@ class SolicitudHoraExtra(models.Model):
     @property
     def pendiente(self):
         return self.estado == self.Estado.PENDIENTE
+
+    @property
+    def autorizador(self):
+        """Nombre de quien autoriza, para mostrar."""
+        return self.administrador.nombre_completo if self.administrador else self.autorizado_por
+
+    @classmethod
+    def visibles_para(cls, usuario):
+        """Solicitudes que puede ver y revisar un administrador: las dirigidas a él y las antiguas sin administrador.
+        El superusuario ve todas."""
+        if usuario.is_superuser:
+            return cls.objects.all()
+        return cls.objects.filter(Q(administrador__usuario=usuario) | Q(administrador__isnull=True))

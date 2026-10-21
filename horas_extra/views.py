@@ -29,7 +29,7 @@ def solicitar(request, turno_id):
 
     # Se propone que la hora extra empiece cuando termina el turno.
     fin_turno = turno.hora_fin or turno.tipo_turno.hora_fin_2 or turno.tipo_turno.hora_fin
-    form = SolicitudForm(request.POST or None, initial={'hora_inicio': fin_turno})
+    form = SolicitudForm(request.POST or None, initial={'hora_inicio': fin_turno}, funcionario=turno.funcionario)
     if form.is_valid():
         solicitud = form.save(commit=False)
         solicitud.funcionario = turno.funcionario
@@ -64,8 +64,8 @@ ESTADOS_FILTRO = {
 @administrador_requerido
 def lista(request):
     estado = request.GET.get('estado', 'pendientes')
-    solicitudes = SolicitudHoraExtra.objects.select_related(
-        'funcionario__cargo', 'funcionario__area', 'turno__tipo_turno', 'revisado_por',
+    solicitudes = SolicitudHoraExtra.visibles_para(request.user).select_related(
+        'funcionario__cargo', 'funcionario__area', 'turno__tipo_turno', 'revisado_por', 'administrador',
     )
     if estado in ESTADOS_FILTRO:
         solicitudes = solicitudes.filter(estado=ESTADOS_FILTRO[estado])
@@ -77,8 +77,11 @@ def lista(request):
 @administrador_requerido
 def revisar(request, pk):
     """El administrador corrige el horario si hace falta, comenta y aprueba o rechaza."""
+    # Cada administrador solo abre las solicitudes dirigidas a él (y las antiguas sin administrador).
     solicitud = get_object_or_404(
-        SolicitudHoraExtra.objects.select_related('funcionario__cargo', 'funcionario__area', 'turno__tipo_turno'), pk=pk,
+        SolicitudHoraExtra.visibles_para(request.user)
+        .select_related('funcionario__cargo', 'funcionario__area', 'turno__tipo_turno', 'administrador'),
+        pk=pk,
     )
     form = RevisionForm(request.POST or None, instance=solicitud)
     if request.method == 'POST':

@@ -25,7 +25,7 @@ class SolicitudHoraExtraTests(TestCase):
 
     def _solicitar(self, turno=None, **datos):
         turno = turno or self.turno_ana
-        valores = {'hora_inicio': '14:00', 'hora_fin': '16:30', 'motivo': 'Paciente crítico', 'autorizado_por': 'Jefe de enfermería'}
+        valores = {'hora_inicio': '14:00', 'hora_fin': '16:30', 'motivo': 'Paciente crítico', 'administrador': self.admin.pk}
         valores.update(datos)
         return self.client.post(reverse('horas_extra:solicitar', args=[turno.pk]), valores)
 
@@ -64,8 +64,8 @@ class SolicitudHoraExtraTests(TestCase):
 
     def test_datos_obligatorios_y_horario_valido(self, *_):
         self.client.force_login(self.ana.usuario)
-        respuesta = self._solicitar(motivo='', autorizado_por='')
-        self.assertEqual(set(respuesta.context['form'].errors), {'motivo', 'autorizado_por'})
+        respuesta = self._solicitar(motivo='', administrador='')
+        self.assertEqual(set(respuesta.context['form'].errors), {'motivo', 'administrador'})
         self._solicitar(hora_inicio='14:00', hora_fin='14:00')
         self.assertFalse(SolicitudHoraExtra.objects.exists())
 
@@ -185,3 +185,72 @@ class SolicitudHoraExtraTests(TestCase):
         dia = self.client.get(reverse('calendario:dia', args=[2026, 10, 20]))
         self.assertContains(dia, '2.5 h')
         self.assertContains(dia, '<strong>2 h</strong>')
+
+
+@mock.patch('horas_extra.views.timezone.localdate', return_value=HOY)
+@mock.patch('calendario.views.timezone.localdate', return_value=HOY)
+class AdministradorQueAutorizaTests(TestCase):
+    """Cada solicitud va a un administrador elegido de la lista, y solo él la ve."""
+
+    def setUp(self):
+        self.jefe1 = crear_funcionario('1000', nombres='Marta', es_administrador=True)
+        self.jefe2 = crear_funcionario('1001', nombres='Pedro', es_administrador=True)
+        self.ana = crear_funcionario('2000', nombres='Ana')
+        c1 = TipoTurno.objects.create(nombre='Ala A', abreviatura='C1', hora_inicio=datetime.time(5), hora_fin=datetime.time(14))
+        self.turno = AsignacionTurno.objects.create(funcionario=self.ana, fecha=datetime.date(2026, 10, 20), tipo_turno=c1)
+        self.turno_jefe1 = AsignacionTurno.objects.create(funcionario=self.jefe1, fecha=datetime.date(2026, 10, 20), tipo_turno=c1)
+
+    def _solicitar(self, para, turno=None):
+        return self.client.post(reverse('horas_extra:solicitar', args=[(turno or self.turno).pk]), {
+            'hora_inicio': '14:00', 'hora_fin': '16:00', 'motivo': 'Relevo tarde', 'administrador': para.pk,
+        })
+
+    def test_el_formulario_lista_los_administradores(self, *_):
+        self.client.force_login(self.ana.usuario)
+        form = self.client.get(reverse('horas_extra:solicitar', args=[self.turno.pk])).context['form']
+        self.assertEqual(set(form.fields['administrador'].queryset), {self.jefe1, self.jefe2})
+
+    def test_un_administrador_no_se_autoriza_a_si_mismo(self, *_):
+        self.client.force_login(self.jefe1.usuario)
+        form = self.client.get(reverse('horas_extra:solicitar', args=[self.turno_jefe1.pk])).context['form']
+        self.assertEqual(list(form.fields['administrador'].queryset), [self.jefe2])
+        self._solicitar(para=self.jefe1, turno=self.turno_jefe1)
+        self.assertFalse(SolicitudHoraExtra.objects.exists())
+
+    def test_no_se_puede_dirigir_a_alguien_que_no_es_administrador(self, *_):
+        otro = crear_funcionario('3000', nombres='Luis')
+        self.client.force_login(self.ana.usuario)
+        self._solicitar(para=otro)
+        self.assertFalse(SolicitudHoraExtra.objects.exists())
+
+    def test_cada_administrador_ve_solo_lo_suyo(self, *_):
+        self.client.force_login(self.ana.usuario)
+        self._solicitar(para=self.jefe1)
+        solicitud = SolicitudHoraExtra.objects.get()
+        self.assertEqual((solicitud.administrador, solicitud.autorizador), (self.jefe1, 'Marta Pérez'))
+
+        self.client.force_login(self.jefe1.usuario)
+        self.assertEqual(list(self.client.get(reverse('horas_extra:lista')).context['solicitudes']), [solicitud])
+        self.assertContains(self.client.get(reverse('calendario:mes')), 'title="Solicitudes pendientes">1</span>')
+        self.assertEqual(self.client.get(reverse('horas_extra:revisar', args=[solicitud.pk])).status_code, 200)
+
+        self.client.force_login(self.jefe2.usuario)
+        self.assertEqual(list(self.client.get(reverse('horas_extra:lista'), {'estado': 'todas'}).context['solicitudes']), [])
+        self.assertNotContains(self.client.get(reverse('calendario:mes')), 'Solicitudes pendientes')
+        self.assertEqual(self.client.get(reverse('horas_extra:revisar', args=[solicitud.pk])).status_code, 404)
+        respuesta = self.client.post(reverse('horas_extra:revisar', args=[solicitud.pk]), {
+            'hora_inicio': '14:00', 'hora_fin': '16:00', 'decision': 'aprobada',
+        })
+        self.assertEqual(respuesta.status_code, 404)
+        solicitud.refresh_from_db()
+        self.assertEqual(solicitud.estado, 'pendiente')
+
+    def test_solicitudes_antiguas_las_ven_todos_los_administradores(self, *_):
+        antigua = SolicitudHoraExtra.objects.create(
+            funcionario=self.ana, fecha=self.turno.fecha, turno=self.turno, hora_inicio=datetime.time(14),
+            hora_fin=datetime.time(15), motivo='Antes del cambio', autorizado_por='Jefe escrito a mano',
+        )
+        for jefe in (self.jefe1, self.jefe2):
+            self.client.force_login(jefe.usuario)
+            self.assertIn(antigua, self.client.get(reverse('horas_extra:lista')).context['solicitudes'])
+        self.assertEqual(antigua.autorizador, 'Jefe escrito a mano')

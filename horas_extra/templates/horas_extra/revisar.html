@@ -25,7 +25,7 @@
 
 <dl class="datos-solicitud">
     <dt>Motivo</dt><dd>{{ solicitud.motivo }}</dd>
-    <dt>Autorizó</dt><dd>{{ solicitud.autorizado_por }}</dd>
+    <dt>Autoriza</dt><dd>{{ solicitud.autorizador }}</dd>
     <dt>Solicitada</dt><dd>{{ solicitud.creado|date:'d/m/Y H:i' }}</dd>
     {% if solicitud.revisado_por %}
         <dt>Revisada</dt><dd>{{ solicitud.revisado_en|date:'d/m/Y H:i' }} por {{ solicitud.revisado_por.get_full_name|default:solicitud.revisado_por.username }}</dd>

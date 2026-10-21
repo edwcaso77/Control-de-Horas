@@ -50,7 +50,7 @@
                         {% else %}—{% endif %}
                     </td>
                     <td>{{ s.motivo }}</td>
-                    <td>{{ s.autorizado_por }}</td>
+                    <td>{{ s.autorizador }}</td>
                     <td>
                         <span class="etiqueta etiqueta-{{ s.estado }}">{{ s.get_estado_display }}</span>
                         {% if s.revisado_por %}<small class="ayuda comentario-admin">por {{ s.revisado_por.get_full_name|default:s.revisado_por.username }}</small>{% endif %}
