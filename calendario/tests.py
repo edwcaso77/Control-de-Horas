@@ -121,3 +121,20 @@ class ConsultaDiaTests(TestCase):
         self.assertEqual(len(self._dia_del_mes(respuesta, self.fecha)['turnos']), 1)
         self.assertEqual(len(self._dia_del_mes(respuesta, self.fecha + datetime.timedelta(days=1))['turnos']), 0)
         self.assertNotContains(respuesta, 'Ana Pérez')
+
+    def test_funcionario_ve_su_turno_dentro_del_dia(self):
+        self.client.force_login(self.ana.usuario)
+        respuesta = self.client.get(reverse('calendario:mes'), {'anio': 2026, 'mes': 10})
+        self.assertContains(respuesta, 'class="mi-turno"')
+        self.assertContains(respuesta, '<b>C1</b> <small>05:00 – 14:00</small>', html=False)
+        self.assertNotContains(respuesta, 'en turno</span>')
+        # El menú del funcionario solo tiene el calendario.
+        self.assertNotContains(respuesta, 'Cuadro de turno')
+        self.assertNotContains(respuesta, 'Funcionarios')
+
+    def test_funcionario_que_entra_a_administracion_ve_mensaje_en_espanol(self):
+        self.client.force_login(self.ana.usuario)
+        respuesta = self.client.get(reverse('turnos:cuadro'))
+        self.assertEqual(respuesta.status_code, 403)
+        self.assertContains(respuesta, 'Esta sección es solo para administradores', status_code=403)
+        self.assertContains(respuesta, 'Volver al calendario', status_code=403)

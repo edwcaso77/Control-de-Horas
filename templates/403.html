@@ -1,0 +1,19 @@
+{% load static %}<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Sin permiso · Control de Horas</title>
+    <link rel="stylesheet" href="{% static 'css/base.css' %}">
+</head>
+<body class="pagina-ingreso">
+<main class="tarjeta-ingreso">
+    <div class="marca marca-ingreso">
+        <span class="marca-icono" aria-hidden="true">+</span>
+        <span>Control de Horas</span>
+    </div>
+    <p>Esta sección es solo para administradores.</p>
+    <a href="{% url 'calendario:mes' %}" class="boton boton-primario boton-ancho">Volver al calendario</a>
+</main>
+</body>
+</html>

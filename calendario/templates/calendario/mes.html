@@ -4,8 +4,19 @@
     <a class="dia-enlace" href="{% url 'calendario:dia' dia.fecha.year dia.fecha.month dia.fecha.day %}"
        aria-label="Ver los turnos del {{ dia.fecha|date:'j \d\e F' }}"></a>
 
-    {% if dia.turnos %}
-        <span class="dia-total">{{ dia.turnos|length }} en turno</span>
+    {% if es_admin %}
+        {% if dia.turnos %}
+            <span class="dia-total">{{ dia.turnos|length }} en turno</span>
+        {% endif %}
+    {% else %}
+        {# El funcionario ve directamente su turno en el día #}
+        <div class="mis-turnos">
+            {% for a in dia.turnos %}
+                <span class="mi-turno" style="background: {{ a.tipo_turno.color }}; color: {{ a.tipo_turno.color_texto }}">
+                    <b>{{ a.etiqueta }}</b> <small>{{ a.horario }}</small>
+                </span>
+            {% endfor %}
+        </div>
     {% endif %}
 
     {# Lista que aparece al pasar el mouse sobre el día #}
