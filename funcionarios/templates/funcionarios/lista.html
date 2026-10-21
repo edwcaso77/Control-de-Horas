@@ -5,7 +5,10 @@
 {% block contenido %}
 <header class="encabezado-pagina">
     <h1>Funcionarios</h1>
-    <a href="{% url 'funcionarios:crear' %}" class="boton boton-verde">+ Nuevo funcionario</a>
+    <div class="navegacion-dia">
+        <a href="{% url 'funcionarios:importar' %}" class="boton">Importar desde Excel</a>
+        <a href="{% url 'funcionarios:crear' %}" class="boton boton-verde">+ Nuevo funcionario</a>
+    </div>
 </header>
 
 <form method="get" class="filtros">

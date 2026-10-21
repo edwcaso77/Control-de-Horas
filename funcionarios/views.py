@@ -1,10 +1,11 @@
 from django.contrib import messages
 from django.db.models import Q
-from django.http import Http404
+from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
+from . import importar
 from .forms import FuncionarioForm, catalogo_form
 from .models import Area, Cargo, Funcionario
 from .permisos import administrador_requerido
@@ -138,3 +139,58 @@ def catalogo_estado(request, tipo, pk):
     elemento.save(update_fields=['activo'])
     messages.success(request, f'«{elemento}» {"activado" if elemento.activo else "desactivado"}.')
     return redirect('funcionarios:catalogo', tipo=tipo)
+
+
+CREDENCIALES_SESION = 'credenciales_importadas'
+TIPO_EXCEL = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+
+
+@administrador_requerido
+def plantilla(request):
+    """Descarga la plantilla de Excel para cargar funcionarios."""
+    respuesta = HttpResponse(importar.plantilla_excel(), content_type=TIPO_EXCEL)
+    respuesta['Content-Disposition'] = 'attachment; filename="plantilla_funcionarios.xlsx"'
+    return respuesta
+
+
+@administrador_requerido
+def importar_excel(request):
+    """Sube la plantilla llena y crea los funcionarios. Si una fila tiene errores, no se crea ninguno."""
+    contexto = {}
+    if request.method == 'POST':
+        archivo = request.FILES.get('archivo')
+        if archivo is None:
+            contexto['error_archivo'] = 'Elija el archivo de Excel.'
+        elif not archivo.name.lower().endswith('.xlsx'):
+            contexto['error_archivo'] = 'El archivo debe ser de Excel (.xlsx).'
+        elif archivo.size > 5 * 1024 * 1024:
+            contexto['error_archivo'] = 'El archivo es demasiado grande (máximo 5 MB).'
+        else:
+            try:
+                creados, errores, nuevos = importar.importar(archivo)
+            except importar.ErrorDeArchivo as error:
+                contexto['error_archivo'] = str(error)
+            else:
+                if errores:
+                    contexto['errores'] = errores
+                else:
+                    credenciales = [(f.numero_documento, f.nombre_completo, clave) for f, clave in creados]
+                    # Las contraseñas se pueden descargar una sola vez; luego se borran de la sesión.
+                    request.session[CREDENCIALES_SESION] = credenciales
+                    return render(request, 'funcionarios/importar_resultado.html', {
+                        'credenciales': credenciales,
+                        'nuevos': nuevos,
+                    })
+    return render(request, 'funcionarios/importar.html', contexto)
+
+
+@administrador_requerido
+def credenciales(request):
+    """Descarga (una sola vez) las contraseñas iniciales de la última importación."""
+    datos = request.session.pop(CREDENCIALES_SESION, None)
+    if not datos:
+        messages.error(request, 'Las contraseñas iniciales ya se descargaron o expiraron.')
+        return redirect('funcionarios:lista')
+    respuesta = HttpResponse(importar.credenciales_excel(datos), content_type=TIPO_EXCEL)
+    respuesta['Content-Disposition'] = 'attachment; filename="contrasenas_iniciales.xlsx"'
+    return respuesta

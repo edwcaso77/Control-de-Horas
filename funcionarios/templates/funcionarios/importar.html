@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Importar funcionarios{% endblock %}
+
+{% block contenido %}
+<header class="encabezado-pagina">
+    <h1>Importar funcionarios desde Excel</h1>
+    <a href="{% url 'funcionarios:lista' %}" class="boton">Volver a funcionarios</a>
+</header>
+
+<ol class="pasos-importar">
+    <li>
+        <strong>Descargue la plantilla</strong> y llene una fila por funcionario.
+        Incluye las listas de cargos y áreas actuales.
+        <div><a href="{% url 'funcionarios:plantilla' %}" class="boton boton-pequeno boton-primario">Descargar plantilla (.xlsx)</a></div>
+    </li>
+    <li><strong>Suba el archivo lleno</strong> aquí abajo.</li>
+    <li>El sistema crea a todos los funcionarios y le muestra la <strong>contraseña inicial</strong> de cada uno, una sola vez.</li>
+</ol>
+
+<form method="post" enctype="multipart/form-data" class="formulario" id="formulario-importar">
+    {% csrf_token %}
+    <fieldset class="seccion-formulario">
+        <legend>Archivo</legend>
+        <div class="campo{% if error_archivo %} con-error{% endif %}">
+            <label for="archivo">Plantilla llena (.xlsx) <span class="requerido">*</span></label>
+            <input type="file" id="archivo" name="archivo" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required>
+            {% if error_archivo %}<small class="error">{{ error_archivo }}</small>{% endif %}
+        </div>
+        <p class="ayuda">Si alguna fila tiene un error no se crea ningún funcionario, y aquí verá qué corregir.
+            Los cargos y áreas que no existan se crean automáticamente.</p>
+    </fieldset>
+    <div class="botones-formulario">
+        <button type="submit" class="boton boton-primario" id="boton-importar">Importar funcionarios</button>
+        <a href="{% url 'funcionarios:lista' %}" class="boton">Cancelar</a>
+    </div>
+</form>
+
+{% if errores %}
+    <section class="errores-importar">
+        <h2>No se creó ningún funcionario: corrija {{ errores|length }} error{{ errores|length|pluralize:"es" }} en el archivo</h2>
+        <div class="tabla-contenedor">
+            <table class="tabla">
+                <thead><tr><th>Fila</th><th>Columna</th><th>Qué corregir</th></tr></thead>
+                <tbody>
+                    {% for fila, columna, mensaje in errores %}
+                        <tr><td>{{ fila }}</td><td>{{ columna }}</td><td>{{ mensaje }}</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+{% endif %}
+
+<script>
+    document.getElementById('formulario-importar').addEventListener('submit', function () {
+        const boton = document.getElementById('boton-importar');
+        boton.disabled = true;
+        boton.textContent = 'Importando…';
+    });
+</script>
+{% endblock %}

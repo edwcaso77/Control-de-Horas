@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Funcionarios importados{% endblock %}
+
+{% block contenido %}
+<header class="encabezado-pagina">
+    <h1>{{ credenciales|length }} funcionario{{ credenciales|length|pluralize }} creado{{ credenciales|length|pluralize }}</h1>
+    <a href="{% url 'funcionarios:lista' %}" class="boton">Ir a funcionarios</a>
+</header>
+
+<div class="mensaje mensaje-error aviso-contrasenas">
+    <strong>Estas contraseñas iniciales solo se muestran ahora.</strong>
+    Descárguelas o cópielas y entregue cada una solo a su dueño. El usuario de cada funcionario es su número de documento.
+    <div><a href="{% url 'funcionarios:credenciales' %}" class="boton boton-pequeno boton-primario">Descargar contraseñas (.xlsx)</a>
+        <small class="ayuda">(una sola descarga)</small></div>
+</div>
+
+{% if nuevos %}
+    <p class="ayuda">También se crearon: {{ nuevos|join:", " }}.</p>
+{% endif %}
+
+<div class="tabla-contenedor">
+    <table class="tabla">
+        <thead><tr><th>Usuario (documento)</th><th>Nombre</th><th>Contraseña inicial</th></tr></thead>
+        <tbody>
+            {% for documento, nombre, clave in credenciales %}
+                <tr><td>{{ documento }}</td><td>{{ nombre }}</td><td><code class="clave">{{ clave }}</code></td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

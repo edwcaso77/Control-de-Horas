@@ -460,3 +460,14 @@ input:focus, select:focus {
     border-radius: 6px;
     background: #FFF4E0;
 }
+
+/* Importar funcionarios desde Excel */
+.navegacion-dia { display: flex; flex-wrap: wrap; gap: 8px; }
+.pasos-importar { max-width: 900px; margin: 0 0 16px; padding-left: 20px; line-height: 1.6; }
+.pasos-importar li { margin-bottom: 6px; }
+.pasos-importar .boton { margin-top: 4px; }
+.errores-importar { margin-top: 20px; }
+.errores-importar h2 { margin: 0 0 10px; font-size: 1.1rem; color: var(--rojo); }
+.aviso-contrasenas div { margin-top: 8px; }
+.clave { padding: 2px 8px; border-radius: 4px; background: var(--fondo-suave); font-size: .95rem; }
+input[type="file"] { padding: 6px; border: 1px dashed var(--borde); border-radius: 6px; background: #fff; font: inherit; }

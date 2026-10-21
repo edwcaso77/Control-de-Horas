@@ -192,3 +192,86 @@ class ComandoFuncionariosPruebaTests(TestCase):
             call_command('funcionarios_prueba', '--borrar', stdout=io.StringIO())
             self.assertEqual(prueba.count(), 0)
             self.assertFalse(Usuario.objects.filter(username__startswith='9000000').exists())
+
+
+class ImportarExcelTests(TestCase):
+    def setUp(self):
+        self.admin = crear_funcionario('1000', es_administrador=True)
+        self.client.force_login(self.admin.usuario)
+
+    def _archivo(self, filas, nombre='funcionarios.xlsx'):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from openpyxl import load_workbook
+        from .importar import HOJA_DATOS, plantilla_excel
+
+        libro = load_workbook(io.BytesIO(plantilla_excel()))
+        hoja = libro[HOJA_DATOS]
+        for i, fila in enumerate(filas, start=2):
+            for j, valor in enumerate(fila, start=1):
+                hoja.cell(row=i, column=j, value=valor)
+        salida = io.BytesIO()
+        libro.save(salida)
+        return SimpleUploadedFile(nombre, salida.getvalue())
+
+    def _importar(self, filas):
+        return self.client.post(reverse('funcionarios:importar'), {'archivo': self._archivo(filas)})
+
+    def test_plantilla_se_descarga_con_las_listas(self):
+        from openpyxl import load_workbook
+        respuesta = self.client.get(reverse('funcionarios:plantilla'))
+        self.assertEqual(respuesta.status_code, 200)
+        libro = load_workbook(io.BytesIO(respuesta.content))
+        self.assertEqual(libro.sheetnames, ['Instrucciones', 'Funcionarios', 'Listas'])
+        self.assertEqual(libro['Funcionarios']['B1'].value, 'Número de documento *')
+        self.assertEqual(libro['Listas']['B2'].value, 'Auxiliar')  # cargo existente
+
+    def test_importa_y_crea_usuarios_con_contrasena_inicial(self):
+        respuesta = self._importar([
+            ['CC', 1012345678, 'Ana María', 'Pérez Gómez', 'Auxiliar', 'Urgencias', 'ana@correo.com', 3001234567,
+             datetime.date(2024, 2, 1), 'No'],
+            ['Cédula de ciudadanía', '2030', 'Luis', 'Mora', 'Jefe de turno', 'Urgencias', '', '', '01/03/2025', 'Sí'],
+        ])
+        self.assertEqual(respuesta.status_code, 200)
+        credenciales = respuesta.context['credenciales']
+        self.assertEqual([c[0] for c in credenciales], ['1012345678', '2030'])
+        ana = Funcionario.objects.get(numero_documento='1012345678')
+        self.assertEqual((ana.nombres, ana.telefono, ana.fecha_ingreso, ana.es_administrador),
+                         ('Ana María', '3001234567', datetime.date(2024, 2, 1), False))
+        self.assertTrue(ana.usuario.check_password(credenciales[0][2]))
+        luis = Funcionario.objects.get(numero_documento='2030')
+        self.assertTrue(luis.es_administrador)
+        self.assertEqual(luis.cargo.nombre, 'Jefe de turno')  # cargo nuevo creado
+        self.assertIn('Cargo: Jefe de turno', respuesta.context['nuevos'])
+
+        # Las contraseñas se descargan una sola vez.
+        descarga = self.client.get(reverse('funcionarios:credenciales'))
+        self.assertEqual(descarga['Content-Type'], 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        self.assertRedirects(self.client.get(reverse('funcionarios:credenciales')), reverse('funcionarios:lista'))
+
+    def test_si_una_fila_falla_no_se_crea_ninguno(self):
+        antes = Funcionario.objects.count()
+        respuesta = self._importar([
+            ['CC', '3001', 'Bien', 'Escrito', 'Auxiliar', 'Urgencias', '', '', '', ''],
+            ['CC', '3002', '', 'Sin nombre', 'Nuevo cargo', 'Urgencias', 'correo-malo', '', '', ''],
+            ['CC', '3001', 'Repetido', 'En archivo', 'Auxiliar', 'Urgencias', '', '', '', ''],
+            ['CC', '1000', 'Ya', 'Existe', 'Auxiliar', 'Urgencias', '', '', '', ''],
+        ])
+        errores = respuesta.context['errores']
+        self.assertEqual({fila for fila, _, _ in errores}, {3, 4, 5})
+        self.assertEqual(Funcionario.objects.count(), antes)
+        self.assertFalse(Cargo.objects.filter(nombre='Nuevo cargo').exists())
+        self.assertContains(respuesta, 'No se creó ningún funcionario')
+
+    def test_archivo_invalido(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        respuesta = self.client.post(reverse('funcionarios:importar'), {'archivo': SimpleUploadedFile('x.xlsx', b'no es excel')})
+        self.assertContains(respuesta, 'No se pudo leer el archivo')
+        respuesta = self.client.post(reverse('funcionarios:importar'), {'archivo': SimpleUploadedFile('x.csv', b'a,b')})
+        self.assertContains(respuesta, 'debe ser de Excel')
+        self.assertContains(self._importar([]), 'no tiene funcionarios')
+
+    def test_solo_administrador(self):
+        comun = crear_funcionario('5000')
+        self.client.force_login(comun.usuario)
+        self.assertEqual(self.client.get(reverse('funcionarios:importar')).status_code, 403)
+        self.assertEqual(self.client.get(reverse('funcionarios:plantilla')).status_code, 403)
