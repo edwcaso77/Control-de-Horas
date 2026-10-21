@@ -245,7 +245,7 @@ a { color: var(--azul); }
 
 /* ---------- Formularios ---------- */
 input[type="text"], input[type="email"], input[type="password"], input[type="date"],
-input[type="search"], input[type="tel"], select {
+input[type="search"], input[type="tel"], input[type="time"], input[type="number"], select, textarea {
     width: 100%;
     padding: 8px 10px;
     border: 1px solid var(--borde);
@@ -350,3 +350,75 @@ input:focus, select:focus {
 
 .subtitulo-seccion { margin: 6px 0 8px; font-weight: 600; color: var(--azul-marino); }
 .seccion-formulario[hidden] { display: none; }
+
+/* Resumen del turno sobre el que se pide la hora extra */
+.resumen-turno {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    max-width: 900px;
+    margin-bottom: 16px;
+    padding: 12px 16px;
+    border: 1px solid var(--borde);
+    border-radius: 8px;
+    background: var(--fondo-suave);
+}
+
+/* Estados de las solicitudes de hora extra */
+.etiqueta-pendiente { background: #FFF4E0; color: #A35A00; }
+.etiqueta-aprobada { background: #EEF7E8; color: #3F7A17; }
+.etiqueta-rechazada { background: #FBECEA; color: var(--rojo); }
+.comentario-admin { display: block; margin-top: 4px; }
+
+.mis-solicitudes { margin-top: 24px; }
+.mis-solicitudes h2 { margin: 0 0 10px; font-size: 1.15rem; color: var(--azul-marino); }
+
+.contador-menu {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    margin-left: 6px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: var(--verde);
+    color: #fff;
+    font-size: .72rem;
+    font-weight: 700;
+}
+
+/* Pestañas de filtro (listado de horas extra) */
+.pestanas {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 14px;
+    border-bottom: 2px solid var(--borde);
+}
+
+.pestana {
+    display: inline-flex;
+    align-items: center;
+    padding: 8px 14px;
+    margin-bottom: -2px;
+    border-bottom: 2px solid transparent;
+    color: var(--gris-oscuro);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.pestana:hover { color: var(--azul); }
+.pestana.activa { border-bottom-color: var(--azul); color: var(--azul); }
+
+/* Datos de una solicitud */
+.datos-solicitud {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 6px 16px;
+    max-width: 900px;
+    margin: 0 0 16px;
+}
+
+.datos-solicitud dt { font-weight: 700; color: var(--azul-marino); }
+.datos-solicitud dd { margin: 0; }

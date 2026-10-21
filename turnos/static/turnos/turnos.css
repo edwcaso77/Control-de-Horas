@@ -148,7 +148,7 @@
 
 .columna-fecha { display: block; margin-bottom: 4px; }
 
-.llenar-columna {
+.tabla-turnos .llenar-columna {
     width: 76px;
     padding: 2px 4px;
     font-size: .8rem;
@@ -230,7 +230,7 @@
 .ranura-adicional .selector-turno { padding: 3px 6px; font-size: .8rem; }
 .ranura-adicional .selector-turno.turno-vacio { border-style: dashed; }
 
-.horas-turno {
+.selector-ranura .horas-turno {
     width: 58px;
     padding: 4px 6px;
     border: 1px solid var(--borde);
@@ -241,7 +241,7 @@
 
 .horas-turno[hidden] { display: none; }
 
-.inicio-turno {
+.selector-ranura .inicio-turno {
     width: 118px;
     padding: 4px 6px;
     border: 1px solid var(--borde);

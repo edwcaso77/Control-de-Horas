@@ -64,6 +64,7 @@ INSTALLED_APPS = [
     'calendario',
     'funcionarios',
     'turnos',
+    'horas_extra',
 ]
 
 MIDDLEWARE = [
@@ -89,6 +90,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'funcionarios.context_processors.permisos',
+                'horas_extra.context_processors.pendientes',
             ],
         },
     },

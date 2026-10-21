@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block titulo %}Horas extra{% endblock %}
+
+{% block estilos %}<link rel="stylesheet" href="{% static 'turnos/turnos.css' %}">{% endblock %}
+
+{% block contenido %}
+<header class="encabezado-pagina">
+    <h1>Horas extra</h1>
+</header>
+
+<nav class="pestanas" aria-label="Filtrar por estado">
+    <a href="?estado=pendientes" class="pestana{% if estado == 'pendientes' %} activa{% endif %}">Pendientes{% if solicitudes_pendientes %} <span class="contador-menu">{{ solicitudes_pendientes }}</span>{% endif %}</a>
+    <a href="?estado=aprobadas" class="pestana{% if estado == 'aprobadas' %} activa{% endif %}">Aprobadas</a>
+    <a href="?estado=rechazadas" class="pestana{% if estado == 'rechazadas' %} activa{% endif %}">Rechazadas</a>
+    <a href="?estado=todas" class="pestana{% if estado == 'todas' %} activa{% endif %}">Todas</a>
+</nav>
+
+<div class="tabla-contenedor">
+    <table class="tabla">
+        <thead>
+            <tr>
+                <th>Fecha</th>
+                <th>Funcionario</th>
+                <th>Turno</th>
+                <th>Horario extra</th>
+                <th>Horas</th>
+                <th>Motivo</th>
+                <th>Autorizó</th>
+                <th>Estado</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in solicitudes %}
+                <tr>
+                    <td>{{ s.fecha|date:'D d/m/Y'|capfirst }}</td>
+                    <td>{{ s.funcionario.apellidos }}, {{ s.funcionario.nombres }}<br><small class="ayuda">{{ s.funcionario.cargo|default:"" }}</small></td>
+                    <td>
+                        {% if s.turno %}
+                            <span class="chip" style="background: {{ s.turno.tipo_turno.color }}; color: {{ s.turno.tipo_turno.color_texto }}">{{ s.turno.etiqueta }}</span>
+                            <small class="ayuda">{{ s.turno.horario }}</small>
+                        {% else %}—{% endif %}
+                    </td>
+                    <td>{{ s.horario }}</td>
+                    <td><strong>{{ s.horas_texto }}</strong></td>
+                    <td>{{ s.motivo }}</td>
+                    <td>{{ s.autorizado_por }}</td>
+                    <td>
+                        <span class="etiqueta etiqueta-{{ s.estado }}">{{ s.get_estado_display }}</span>
+                        {% if s.revisado_por %}<small class="ayuda comentario-admin">por {{ s.revisado_por.get_full_name|default:s.revisado_por.username }}</small>{% endif %}
+                    </td>
+                    <td>
+                        <a class="boton boton-pequeno{% if s.pendiente %} boton-primario{% endif %}" href="{% url 'horas_extra:revisar' s.pk %}">
+                            {% if s.pendiente %}Revisar{% else %}Ver{% endif %}
+                        </a>
+                    </td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="9" class="vacio">
+                    {% if estado == 'pendientes' %}No hay solicitudes pendientes.{% else %}No hay solicitudes.{% endif %}
+                </td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

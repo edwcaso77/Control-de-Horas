@@ -45,6 +45,7 @@
                     <th>Funcionario</th>
                     <th>Cargo</th>
                     <th>Área</th>
+                    <th></th>
                 </tr>
             </thead>
             <tbody>
@@ -55,10 +56,64 @@
                         <td>{{ a.funcionario.apellidos }}, {{ a.funcionario.nombres }}</td>
                         <td>{{ a.funcionario.cargo|default:"—" }}</td>
                         <td>{{ a.funcionario.area|default:"—" }}</td>
+                        <td>
+                            {% if a.funcionario.usuario_id == request.user.pk %}
+                                {% if puede_solicitar %}
+                                    <a class="boton boton-pequeno boton-verde" href="{% url 'horas_extra:solicitar' a.pk %}">Solicitar hora extra</a>
+                                {% else %}
+                                    <small class="ayuda" title="La hora extra se solicita después de trabajarla">Hora extra: después del turno</small>
+                                {% endif %}
+                            {% endif %}
+                        </td>
                     </tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
+{% endif %}
+
+{% if mis_solicitudes %}
+    <section class="mis-solicitudes">
+        <h2>Mis solicitudes de hora extra</h2>
+        <div class="tabla-contenedor">
+            <table class="tabla">
+                <thead>
+                    <tr>
+                        <th>Turno</th>
+                        <th>Horario extra</th>
+                        <th>Horas</th>
+                        <th>Motivo</th>
+                        <th>Autorizó</th>
+                        <th>Estado</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for s in mis_solicitudes %}
+                        <tr>
+                            <td>{% if s.turno %}{{ s.turno.etiqueta }}{% else %}—{% endif %}</td>
+                            <td>{{ s.horario }}</td>
+                            <td>{{ s.horas_texto }}</td>
+                            <td>{{ s.motivo }}</td>
+                            <td>{{ s.autorizado_por }}</td>
+                            <td>
+                                <span class="etiqueta etiqueta-{{ s.estado }}">{{ s.get_estado_display }}</span>
+                                {% if s.comentario %}<small class="ayuda comentario-admin">{{ s.comentario }}</small>{% endif %}
+                            </td>
+                            <td>
+                                {% if s.pendiente %}
+                                    <form method="post" action="{% url 'horas_extra:cancelar' s.pk %}"
+                                          onsubmit="return confirm('¿Cancelar esta solicitud de hora extra?')">
+                                        {% csrf_token %}
+                                        <button type="submit" class="boton boton-pequeno boton-peligro">Cancelar</button>
+                                    </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
 {% endif %}
 {% endblock %}

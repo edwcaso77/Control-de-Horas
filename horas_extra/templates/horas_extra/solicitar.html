@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block titulo %}Solicitar hora extra{% endblock %}
+
+{% block estilos %}<link rel="stylesheet" href="{% static 'turnos/turnos.css' %}">{% endblock %}
+
+{% block contenido %}
+<header class="encabezado-pagina">
+    <h1>Solicitar hora extra</h1>
+    <a class="boton" href="{% url 'calendario:dia' turno.fecha.year turno.fecha.month turno.fecha.day %}">Volver al día</a>
+</header>
+
+<div class="resumen-turno">
+    <span class="chip" style="background: {{ turno.tipo_turno.color }}; color: {{ turno.tipo_turno.color_texto }}">{{ turno.etiqueta }}</span>
+    <div>
+        <strong>{{ turno.fecha|date:'l j \d\e F \d\e Y'|capfirst }}</strong><br>
+        Turno {{ turno.tipo_turno.nombre }} · {{ turno.horario }}
+    </div>
+</div>
+
+<form method="post" class="formulario" novalidate>
+    {% csrf_token %}
+    {% for error in form.non_field_errors %}
+        <div class="mensaje mensaje-error">{{ error }}</div>
+    {% endfor %}
+
+    <fieldset class="seccion-formulario">
+        <legend>Tiempo adicional trabajado</legend>
+        <div class="rejilla">
+            {% include 'includes/campo.html' with campo=form.hora_inicio %}
+            {% include 'includes/campo.html' with campo=form.hora_fin %}
+        </div>
+        <p class="ayuda">Total: <strong id="total-horas">—</strong></p>
+        {% include 'includes/campo.html' with campo=form.motivo %}
+        <div style="max-width: 420px">
+            {% include 'includes/campo.html' with campo=form.autorizado_por %}
+        </div>
+    </fieldset>
+
+    <div class="botones-formulario">
+        <button type="submit" class="boton boton-primario">Enviar solicitud</button>
+        <a href="{% url 'calendario:dia' turno.fecha.year turno.fecha.month turno.fecha.day %}" class="boton">Cancelar</a>
+    </div>
+</form>
+
+<script src="{% static 'horas_extra/total_horas.js' %}"></script>
+{% endblock %}

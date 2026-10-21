@@ -3,9 +3,11 @@ import datetime
 from django.contrib.auth.decorators import login_required
 from django.http import Http404
 from django.shortcuts import render
+from django.utils import timezone
 
 from funcionarios.models import Area
 from funcionarios.permisos import es_administrador
+from horas_extra.models import SolicitudHoraExtra
 from turnos.agrupar import turnos_por_dia
 from turnos.models import AsignacionTurno
 
@@ -58,6 +60,10 @@ def dia(request, anio, mes, dia):
         'anterior': fecha - datetime.timedelta(days=1),
         'siguiente': fecha + datetime.timedelta(days=1),
         'turnos': turnos,
+        # La hora extra se solicita después de trabajarla: hoy o días anteriores.
+        'puede_solicitar': fecha <= timezone.localdate(),
+        'mis_solicitudes': SolicitudHoraExtra.objects.filter(funcionario__usuario=request.user, fecha=fecha)
+                                                     .select_related('turno__tipo_turno'),
         'areas': Area.objects.filter(activo=True) if admin else [],
         'area': area,
     })

@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block titulo %}Revisar hora extra{% endblock %}
+
+{% block estilos %}<link rel="stylesheet" href="{% static 'turnos/turnos.css' %}">{% endblock %}
+
+{% block contenido %}
+<header class="encabezado-pagina">
+    <h1>Hora extra de {{ solicitud.funcionario.nombre_completo }}</h1>
+    <a class="boton" href="{% url 'horas_extra:lista' %}">Volver al listado</a>
+</header>
+
+<div class="resumen-turno">
+    {% if solicitud.turno %}
+        <span class="chip" style="background: {{ solicitud.turno.tipo_turno.color }}; color: {{ solicitud.turno.tipo_turno.color_texto }}">{{ solicitud.turno.etiqueta }}</span>
+    {% endif %}
+    <div>
+        <strong>{{ solicitud.fecha|date:'l j \d\e F \d\e Y'|capfirst }}</strong>
+        · <span class="etiqueta etiqueta-{{ solicitud.estado }}">{{ solicitud.get_estado_display }}</span><br>
+        {% if solicitud.turno %}Turno {{ solicitud.turno.tipo_turno.nombre }} · {{ solicitud.turno.horario }}<br>{% endif %}
+        {{ solicitud.funcionario.cargo|default:"" }}{% if solicitud.funcionario.area %} · {{ solicitud.funcionario.area }}{% endif %}
+    </div>
+</div>
+
+<dl class="datos-solicitud">
+    <dt>Motivo</dt><dd>{{ solicitud.motivo }}</dd>
+    <dt>Autorizó</dt><dd>{{ solicitud.autorizado_por }}</dd>
+    <dt>Solicitada</dt><dd>{{ solicitud.creado|date:'d/m/Y H:i' }}</dd>
+    {% if solicitud.revisado_por %}
+        <dt>Revisada</dt><dd>{{ solicitud.revisado_en|date:'d/m/Y H:i' }} por {{ solicitud.revisado_por.get_full_name|default:solicitud.revisado_por.username }}</dd>
+    {% endif %}
+</dl>
+
+<form method="post" class="formulario" novalidate>
+    {% csrf_token %}
+    {% for error in form.non_field_errors %}
+        <div class="mensaje mensaje-error">{{ error }}</div>
+    {% endfor %}
+
+    <fieldset class="seccion-formulario">
+        <legend>Horario de la hora extra</legend>
+        <p class="ayuda">Si el horario no es correcto, corríjalo antes de aprobar.</p>
+        <div class="rejilla">
+            {% include 'includes/campo.html' with campo=form.hora_inicio %}
+            {% include 'includes/campo.html' with campo=form.hora_fin %}
+        </div>
+        <p class="ayuda">Total: <strong id="total-horas">{{ solicitud.horas_texto }}</strong></p>
+        {% include 'includes/campo.html' with campo=form.comentario %}
+    </fieldset>
+
+    <div class="botones-formulario">
+        <button type="submit" name="decision" value="aprobada" class="boton boton-verde">Aprobar</button>
+        <button type="submit" name="decision" value="rechazada" class="boton boton-peligro"
+                onclick="return confirm('¿Rechazar esta solicitud de hora extra?')">Rechazar</button>
+        <a href="{% url 'horas_extra:lista' %}" class="boton">Cancelar</a>
+    </div>
+</form>
+
+<script src="{% static 'horas_extra/total_horas.js' %}"></script>
+{% endblock %}
