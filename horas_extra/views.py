@@ -26,6 +26,9 @@ def solicitar(request, turno_id):
     if turno.fecha > timezone.localdate():
         messages.error(request, 'La hora extra se solicita después de trabajarla: este día todavía no ha llegado.')
         return _volver_al_dia(turno.fecha)
+    if turno.solicitudes_hora_extra.exists():
+        messages.error(request, 'Ya solicitó hora extra para este turno. Solo se puede solicitar una vez.')
+        return _volver_al_dia(turno.fecha)
 
     # Se propone que la hora extra empiece cuando termina el turno.
     fin_turno = turno.hora_fin or turno.tipo_turno.hora_fin_2 or turno.tipo_turno.hora_fin

@@ -19,7 +19,7 @@
     </div>
 </div>
 
-<form method="post" class="formulario" novalidate>
+<form method="post" class="formulario" id="formulario-solicitud" novalidate>
     {% csrf_token %}
     {% for error in form.non_field_errors %}
         <div class="mensaje mensaje-error">{{ error }}</div>
@@ -44,5 +44,23 @@
     </div>
 </form>
 
+<dialog class="ventana-confirmar" id="confirmar-solicitud" aria-labelledby="confirmar-titulo">
+    <h2 id="confirmar-titulo">¿Está seguro?</h2>
+    <p class="aviso-una-vez">Solo se puede solicitar <strong>una vez</strong> la hora extra de este turno.
+        Revise que los datos estén bien antes de enviar.</p>
+    <dl class="datos-solicitud">
+        <dt>Turno</dt><dd>{{ turno.etiqueta }} · {{ turno.fecha|date:'j \d\e F' }}</dd>
+        <dt>Desde</dt><dd id="confirmar-desde"></dd>
+        <dt>Hasta</dt><dd id="confirmar-hasta"></dd>
+        <dt>Total</dt><dd id="confirmar-total"></dd>
+        <dt>Autoriza</dt><dd id="confirmar-administrador"></dd>
+    </dl>
+    <div class="botones-formulario">
+        <button type="button" class="boton boton-primario" id="confirmar-enviar">Sí, enviar</button>
+        <button type="button" class="boton" id="confirmar-revisar">Revisar</button>
+    </div>
+</dialog>
+
 <script src="{% static 'horas_extra/total_horas.js' %}"></script>
+<script src="{% static 'horas_extra/confirmar_solicitud.js' %}"></script>
 {% endblock %}

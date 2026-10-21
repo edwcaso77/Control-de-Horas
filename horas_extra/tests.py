@@ -186,6 +186,46 @@ class SolicitudHoraExtraTests(TestCase):
         self.assertContains(dia, '2.5 h')
         self.assertContains(dia, '<strong>2 h</strong>')
 
+    def test_solo_una_solicitud_por_turno(self, *_):
+        self.client.force_login(self.ana.usuario)
+        self._solicitar()
+        respuesta = self.client.post(reverse('horas_extra:solicitar', args=[self.turno_ana.pk]), {
+            'hora_inicio': '16:30', 'hora_fin': '18:00', 'motivo': 'Otra vez', 'administrador': self.admin.pk,
+        }, follow=True)
+        self.assertContains(respuesta, 'Solo se puede solicitar una vez')
+        self.assertEqual(SolicitudHoraExtra.objects.count(), 1)
+        # Tampoco se puede abrir el formulario de nuevo.
+        self.assertRedirects(
+            self.client.get(reverse('horas_extra:solicitar', args=[self.turno_ana.pk])),
+            reverse('calendario:dia', args=[2026, 10, 20]),
+        )
+
+    def test_el_dia_cambia_el_boton_cuando_ya_se_solicito(self, *_):
+        self.client.force_login(self.ana.usuario)
+        self._solicitar()
+        dia = self.client.get(reverse('calendario:dia', args=[2026, 10, 20]))
+        self.assertContains(dia, 'Hora extra ya solicitada')
+        self.assertNotContains(dia, reverse('horas_extra:solicitar', args=[self.turno_ana.pk]))
+
+    def test_al_cancelar_se_puede_volver_a_solicitar(self, *_):
+        self.client.force_login(self.ana.usuario)
+        self._solicitar()
+        self.client.post(reverse('horas_extra:cancelar', args=[SolicitudHoraExtra.objects.get().pk]))
+        self._solicitar()
+        self.assertEqual(SolicitudHoraExtra.objects.count(), 1)
+
+    def test_rechazada_no_se_puede_volver_a_solicitar(self, *_):
+        self.client.force_login(self.ana.usuario)
+        self._solicitar()
+        SolicitudHoraExtra.objects.update(estado=SolicitudHoraExtra.Estado.RECHAZADA)
+        self._solicitar()
+        self.assertEqual(SolicitudHoraExtra.objects.count(), 1)
+
+    def test_el_formulario_tiene_ventana_de_confirmacion(self, *_):
+        self.client.force_login(self.ana.usuario)
+        formulario = self.client.get(reverse('horas_extra:solicitar', args=[self.turno_ana.pk]))
+        self.assertContains(formulario, 'id="confirmar-solicitud"')
+        self.assertContains(formulario, 'Solo se puede solicitar <strong>una vez</strong>')
 
 @mock.patch('horas_extra.views.timezone.localdate', return_value=HOY)
 @mock.patch('calendario.views.timezone.localdate', return_value=HOY)

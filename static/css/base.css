@@ -439,3 +439,24 @@ input:focus, select:focus {
 
 .tiempo-etiqueta { font-size: .75rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--texto-suave); }
 .tiempo-total { padding: 1px 9px; border-radius: 999px; background: var(--azul-marino); color: #fff; font-size: .8rem; font-weight: 600; }
+
+/* Ventana emergente de confirmación */
+.ventana-confirmar {
+    width: min(460px, calc(100vw - 32px));
+    padding: 22px 24px;
+    border: 0;
+    border-radius: 12px;
+    box-shadow: 0 18px 50px rgba(0, 0, 0, .3);
+    color: var(--gris-oscuro);
+}
+
+.ventana-confirmar::backdrop { background: rgba(31, 42, 92, .55); }
+.ventana-confirmar h2 { margin: 0 0 8px; color: var(--azul-marino); }
+
+.aviso-una-vez {
+    margin: 0 0 14px;
+    padding: 10px 12px;
+    border-left: 4px solid #E67E22;
+    border-radius: 6px;
+    background: #FFF4E0;
+}

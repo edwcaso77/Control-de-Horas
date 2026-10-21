@@ -55,6 +55,11 @@ def dia(request, anio, mes, dia):
             asignaciones = asignaciones.filter(funcionario__area=area)
 
     turnos = turnos_por_dia(asignaciones)[fecha]
+    mis_solicitudes = list(
+        SolicitudHoraExtra.objects.filter(funcionario__usuario=request.user, fecha=fecha).select_related('turno__tipo_turno')
+    )
+    # Turnos propios que ya tienen hora extra solicitada: solo se puede pedir una vez por turno.
+    turnos_con_solicitud = {s.turno_id for s in mis_solicitudes}
     return render(request, 'calendario/dia.html', {
         'fecha': fecha,
         'anterior': fecha - datetime.timedelta(days=1),
@@ -62,8 +67,8 @@ def dia(request, anio, mes, dia):
         'turnos': turnos,
         # La hora extra se solicita después de trabajarla: hoy o días anteriores.
         'puede_solicitar': fecha <= timezone.localdate(),
-        'mis_solicitudes': SolicitudHoraExtra.objects.filter(funcionario__usuario=request.user, fecha=fecha)
-                                                     .select_related('turno__tipo_turno'),
+        'mis_solicitudes': mis_solicitudes,
+        'turnos_con_solicitud': turnos_con_solicitud,
         'areas': Area.objects.filter(activo=True) if admin else [],
         'area': area,
     })

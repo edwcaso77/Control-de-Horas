@@ -58,7 +58,9 @@
                         <td>{{ a.funcionario.area|default:"—" }}</td>
                         <td>
                             {% if a.funcionario.usuario_id == request.user.pk %}
-                                {% if puede_solicitar %}
+                                {% if a.pk in turnos_con_solicitud %}
+                                    <span class="etiqueta etiqueta-pendiente">Hora extra ya solicitada</span>
+                                {% elif puede_solicitar %}
                                     <a class="boton boton-pequeno boton-verde" href="{% url 'horas_extra:solicitar' a.pk %}">Solicitar hora extra</a>
                                 {% else %}
                                     <small class="ayuda" title="La hora extra se solicita después de trabajarla">Hora extra: después del turno</small>
