@@ -25,6 +25,8 @@
                    class="{% if app == 'turnos' and 'tipo' not in vista %}activo{% endif %}">Cuadro de turno</a>
                 <a href="{% url 'horas_extra:lista' %}"
                    class="{% if app == 'horas_extra' %}activo{% endif %}">Horas extra{% if solicitudes_pendientes %} <span class="contador-menu" title="Solicitudes pendientes">{{ solicitudes_pendientes }}</span>{% endif %}</a>
+                <a href="{% url 'reportes:conteo' %}"
+                   class="{% if app == 'reportes' %}activo{% endif %}">Conteo de horas</a>
                 <a href="{% url 'funcionarios:lista' %}"
                    class="{% if app == 'funcionarios' and not tipo %}activo{% endif %}">Funcionarios</a>
                 <a href="{% url 'funcionarios:catalogo' 'cargos' %}"

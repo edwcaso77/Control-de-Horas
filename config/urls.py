@@ -15,5 +15,6 @@ urlpatterns = [
     path('funcionarios/', include('funcionarios.urls')),
     path('cuadro-de-turno/', include('turnos.urls')),
     path('horas-extra/', include('horas_extra.urls')),
+    path('reportes/', include('reportes.urls')),
     path('', include('calendario.urls')),
 ]

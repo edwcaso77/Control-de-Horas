@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block titulo %}Conteo de horas{% endblock %}
+
+{% block estilos %}<link rel="stylesheet" href="{% static 'reportes/reportes.css' %}">{% endblock %}
+
+{% block contenido %}
+<header class="encabezado-pagina">
+    <h1>Conteo de horas</h1>
+    <a class="boton boton-verde" href="{% url 'reportes:conteo_excel' %}?semana={{ lunes|date:'Y-m-d' }}{% if area %}&area={{ area.pk }}{% endif %}">Descargar Excel</a>
+</header>
+
+<form method="get" class="barra-semana">
+    <a class="boton" href="?semana={{ anterior|date:'Y-m-d' }}{% if area %}&area={{ area.pk }}{% endif %}" aria-label="Semana anterior" title="Semana anterior">&#8249;</a>
+    <strong class="titulo-semana">Semana del {{ lunes|date:'j \d\e F' }} al {{ domingo|date:'j \d\e F \d\e Y' }}</strong>
+    <a class="boton" href="?semana={{ siguiente|date:'Y-m-d' }}{% if area %}&area={{ area.pk }}{% endif %}" aria-label="Semana siguiente" title="Semana siguiente">&#8250;</a>
+    <a class="boton" href="?semana={{ hoy|date:'Y-m-d' }}{% if area %}&area={{ area.pk }}{% endif %}">Esta semana</a>
+    <input type="date" name="semana" value="{{ lunes|date:'Y-m-d' }}" aria-label="Ir a la semana de" onchange="this.form.submit()">
+    <select name="area" aria-label="Sección" onchange="this.form.submit()">
+        <option value="">Todas las secciones</option>
+        {% for a in areas %}<option value="{{ a.pk }}"{% if area and a.pk == area.pk %} selected{% endif %}>{{ a }}</option>{% endfor %}
+    </select>
+</form>
+
+<p class="ayuda">Nocturna de {{ inicio_noche|time:'H:i' }} a {{ fin_noche|time:'H:i' }}. Festivo: domingos y festivos.
+    Horas extra: solicitudes <strong>aprobadas</strong> (tiempo aprobado). Recargo nocturno y diurna festivo: turnos asignados.</p>
+
+<div class="tabla-contenedor">
+    <table class="tabla tabla-conteo">
+        <thead>
+            <tr>
+                <th>FECHA</th>
+                <th>NOMBRE</th>
+                <th>SECCION</th>
+                <th>ACTIVIDAD</th>
+                {% for clave, texto in columnas %}<th class="horas{% if clave == 'recargo_nocturno' %} recargo{% endif %}">{{ texto }}</th>{% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for grupo in grupos %}
+                {% for fila in grupo.filas %}
+                    <tr>
+                        <td class="fecha">{{ fila.fecha|date:'D d/m'|capfirst }}</td>
+                        <td>{{ fila.funcionario.apellidos }}, {{ fila.funcionario.nombres }}</td>
+                        <td>{{ fila.seccion }}</td>
+                        <td>{{ fila.actividad }}</td>
+                        {% for valor in fila.valores %}<td class="horas{% if forloop.counter == columna_recargo %} recargo{% endif %}">{% if valor %}{{ valor|floatformat:"-2" }}{% else %}–{% endif %}</td>{% endfor %}
+                    </tr>
+                {% endfor %}
+                <tr class="fila-total-funcionario">
+                    <td colspan="4">Total {{ grupo.funcionario.nombre_completo }}</td>
+                    {% for valor in grupo.total %}<td class="horas{% if forloop.counter == columna_recargo %} recargo{% endif %}">{% if valor %}{{ valor|floatformat:"-2" }}{% else %}–{% endif %}</td>{% endfor %}
+                </tr>
+            {% empty %}
+                <tr><td colspan="10" class="vacio">No hay horas extra aprobadas ni recargos esta semana{% if area %} en {{ area }}{% endif %}.</td></tr>
+            {% endfor %}
+        </tbody>
+        {% if grupos %}
+            <tfoot>
+                <tr class="fila-total-general">
+                    <td colspan="4">TOTAL</td>
+                    {% for valor in total_general %}<td class="horas{% if forloop.counter == columna_recargo %} recargo{% endif %}">{% if valor %}{{ valor|floatformat:"-2" }}{% else %}–{% endif %}</td>{% endfor %}
+                </tr>
+            </tfoot>
+        {% endif %}
+    </table>
+</div>
+{% endblock %}

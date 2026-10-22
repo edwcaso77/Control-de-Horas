@@ -1,0 +1,60 @@
+.barra-semana {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.barra-semana .titulo-semana {
+    min-width: 16em;
+    text-align: center;
+    font-size: 1.05rem;
+}
+
+.barra-semana input,
+.barra-semana select {
+    width: auto;
+}
+
+.tabla-conteo th.horas {
+    font-size: 0.75rem;
+    line-height: 1.2;
+    max-width: 9em;
+    white-space: normal;
+    text-align: center;
+}
+
+.tabla-conteo td.horas {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.tabla-conteo .fecha {
+    white-space: nowrap;
+}
+
+.tabla-conteo td.recargo {
+    background: rgba(0, 0, 0, 0.05);
+}
+
+.tabla-conteo th.recargo {
+    box-shadow: inset 0 0 0 999px rgba(0, 0, 0, 0.18);
+}
+
+.tabla-conteo .fila-total-funcionario td {
+    font-weight: 600;
+    border-bottom: 2px solid #ccc;
+}
+
+.tabla-conteo .fila-total-general td {
+    font-weight: 700;
+    font-size: 1.05rem;
+}
+
+.tabla-conteo .vacio {
+    text-align: center;
+    color: #666;
+    padding: 24px;
+}
