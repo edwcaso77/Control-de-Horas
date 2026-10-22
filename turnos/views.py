@@ -12,6 +12,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_POST
 
+from calendario.models import Festivo
 from calendario.utils import contexto_mes
 from funcionarios.models import Area, Cargo, Funcionario
 from funcionarios.permisos import administrador_requerido
@@ -233,6 +234,7 @@ def dia(request, anio, mes, dia):
     ]
     return render(request, 'turnos/dia.html', {
         'fecha': fecha,
+        'festivo': Festivo.objects.filter(fecha=fecha).first(),
         'anterior': fecha - datetime.timedelta(days=1),
         'siguiente': fecha + datetime.timedelta(days=1),
         'semana': semana,

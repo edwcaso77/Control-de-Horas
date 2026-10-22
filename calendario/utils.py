@@ -2,6 +2,8 @@ import calendar
 
 from django.utils import timezone
 
+from .models import Festivo
+
 MESES = [
     'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
     'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
@@ -40,6 +42,13 @@ def contexto_mes(request):
         ]
         for semana in calendar.Calendar(firstweekday=calendar.MONDAY).monthdatescalendar(anio, mes)
     ]
+
+    # Festivos visibles en el mes (incluye los días del mes anterior y siguiente que se ven).
+    primer_dia, ultimo_dia = semanas[0][0]['fecha'], semanas[-1][-1]['fecha']
+    festivos = dict(Festivo.objects.filter(fecha__range=(primer_dia, ultimo_dia)).values_list('fecha', 'nombre'))
+    for semana in semanas:
+        for dia in semana:
+            dia['festivo'] = festivos.get(dia['fecha'])
 
     anterior = (anio, mes - 1) if mes > 1 else (anio - 1, 12)
     siguiente = (anio, mes + 1) if mes < 12 else (anio + 1, 1)

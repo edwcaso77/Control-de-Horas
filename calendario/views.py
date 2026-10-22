@@ -1,17 +1,21 @@
 import datetime
 
+from django import forms
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import Http404
-from django.shortcuts import render
+from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 
 from funcionarios.models import Area
-from funcionarios.permisos import es_administrador
+from funcionarios.permisos import administrador_requerido, es_administrador
 from horas_extra.models import SolicitudHoraExtra
 from turnos.agrupar import turnos_por_dia
 from turnos.models import AsignacionTurno
 
-from .utils import contexto_mes
+from .models import Festivo
+from .utils import ANIO_MAX, ANIO_MIN, _entero, contexto_mes
 
 
 def _turnos_visibles(request, **filtros):
@@ -62,6 +66,7 @@ def dia(request, anio, mes, dia):
     turnos_con_solicitud = {s.turno_id for s in mis_solicitudes}
     return render(request, 'calendario/dia.html', {
         'fecha': fecha,
+        'festivo': Festivo.objects.filter(fecha=fecha).first(),
         'anterior': fecha - datetime.timedelta(days=1),
         'siguiente': fecha + datetime.timedelta(days=1),
         'turnos': turnos,
@@ -71,4 +76,42 @@ def dia(request, anio, mes, dia):
         'turnos_con_solicitud': turnos_con_solicitud,
         'areas': Area.objects.filter(activo=True) if admin else [],
         'area': area,
+    })
+
+
+class FestivoForm(forms.ModelForm):
+    class Meta:
+        model = Festivo
+        fields = ['fecha', 'nombre']
+        widgets = {'fecha': forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d')}
+
+
+@administrador_requerido
+def festivos(request):
+    """Festivos de un año: se ven, se cargan los de Colombia, se agregan manuales o se quitan."""
+    hoy = timezone.localdate()
+    anio = _entero(request.GET.get('anio') or request.POST.get('anio'), hoy.year, ANIO_MIN, ANIO_MAX)
+    form = FestivoForm(request.POST if request.POST.get('accion') == 'agregar' else None)
+
+    if request.method == 'POST':
+        accion = request.POST.get('accion')
+        if accion == 'cargar':
+            creados = Festivo.cargar_colombia(anio)
+            messages.success(request, f'Festivos de Colombia {anio} cargados ({creados} nuevo{"s" if creados != 1 else ""}).')
+            return redirect(f"{reverse('calendario:festivos')}?anio={anio}")
+        if accion == 'agregar' and form.is_valid():
+            festivo = form.save()
+            messages.success(request, f'Festivo agregado: {festivo}.')
+            return redirect(f"{reverse('calendario:festivos')}?anio={festivo.fecha.year}")
+        if accion == 'quitar':
+            festivo = get_object_or_404(Festivo, pk=request.POST.get('pk'))
+            festivo.delete()
+            messages.success(request, f'Festivo quitado: {festivo.fecha:%d/%m/%Y} · {festivo.nombre}.')
+            return redirect(f"{reverse('calendario:festivos')}?anio={anio}")
+
+    return render(request, 'calendario/festivos.html', {
+        'anio': anio,
+        'anios': range(ANIO_MIN, ANIO_MAX + 1),
+        'festivos': Festivo.objects.filter(fecha__year=anio),
+        'form': form,
     })

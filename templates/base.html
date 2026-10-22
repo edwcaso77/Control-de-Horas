@@ -17,7 +17,7 @@
         </div>
 
         <nav class="menu">
-            <a href="{% url 'calendario:mes' %}" class="{% if app == 'calendario' %}activo{% endif %}">Calendario</a>
+            <a href="{% url 'calendario:mes' %}" class="{% if app == 'calendario' and vista != 'festivos' %}activo{% endif %}">Calendario</a>
 
             {% if es_admin %}
                 <span class="menu-titulo">Administración</span>
@@ -31,6 +31,8 @@
                    class="{% if tipo == 'cargos' %}activo{% endif %}">Cargos</a>
                 <a href="{% url 'funcionarios:catalogo' 'areas' %}"
                    class="{% if tipo == 'areas' %}activo{% endif %}">Áreas</a>
+                <a href="{% url 'calendario:festivos' %}"
+                   class="{% if vista == 'festivos' %}activo{% endif %}">Festivos</a>
                 <a href="{% url 'turnos:tipos' %}"
                    class="{% if app == 'turnos' and 'tipo' in vista %}activo{% endif %}">Tipos de turno</a>
             {% endif %}

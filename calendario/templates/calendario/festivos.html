@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Festivos {{ anio }}{% endblock %}
+
+{% block contenido %}
+<header class="encabezado-pagina">
+    <h1>Festivos {{ anio }}</h1>
+    <form method="get" class="filtros" style="margin: 0">
+        <select name="anio" aria-label="Año" onchange="this.form.submit()">
+            {% for a in anios %}<option value="{{ a }}"{% if a == anio %} selected{% endif %}>{{ a }}</option>{% endfor %}
+        </select>
+    </form>
+</header>
+
+<p class="ayuda">Los festivos se marcan en rojo en el Calendario y en el Cuadro de turno. Los de Colombia
+    (incluida la Ley Emiliani y la Semana Santa) se calculan solos; también puede agregar un festivo local.</p>
+
+<div class="acciones-festivos">
+    <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="anio" value="{{ anio }}">
+        <input type="hidden" name="accion" value="cargar">
+        <button type="submit" class="boton boton-primario">Cargar festivos de Colombia {{ anio }}</button>
+        <small class="ayuda">Agrega los que falten; no duplica.</small>
+    </form>
+
+    <form method="post" class="formulario-en-linea" novalidate>
+        {% csrf_token %}
+        <input type="hidden" name="anio" value="{{ anio }}">
+        <input type="hidden" name="accion" value="agregar">
+        {% include 'includes/campo.html' with campo=form.fecha %}
+        {% include 'includes/campo.html' with campo=form.nombre %}
+        <button type="submit" class="boton boton-verde" style="margin-top: 24px">+ Agregar festivo</button>
+    </form>
+</div>
+
+<div class="tabla-contenedor">
+    <table class="tabla">
+        <thead><tr><th>Fecha</th><th>Día</th><th>Festivo</th><th></th></tr></thead>
+        <tbody>
+            {% for f in festivos %}
+                <tr>
+                    <td>{{ f.fecha|date:'d/m/Y' }}</td>
+                    <td>{{ f.fecha|date:'l'|capfirst }}</td>
+                    <td><strong>{{ f.nombre }}</strong></td>
+                    <td>
+                        <div class="acciones">
+                            <a class="boton boton-pequeno" href="{% url 'calendario:dia' f.fecha.year f.fecha.month f.fecha.day %}">Ver día</a>
+                            <form method="post" onsubmit="return confirm('¿Quitar el festivo {{ f.nombre|escapejs }}?')">
+                                {% csrf_token %}
+                                <input type="hidden" name="anio" value="{{ anio }}">
+                                <input type="hidden" name="accion" value="quitar">
+                                <input type="hidden" name="pk" value="{{ f.pk }}">
+                                <button type="submit" class="boton boton-pequeno boton-peligro">Quitar</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="4" class="vacio">No hay festivos en {{ anio }}. Use «Cargar festivos de Colombia {{ anio }}».</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

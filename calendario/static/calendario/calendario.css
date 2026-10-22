@@ -246,3 +246,26 @@
 }
 
 .mi-turno small { display: block; font-size: .68rem; opacity: .9; }
+
+/* Festivos: fondo rojo suave, número en rojo y el nombre del festivo */
+.dia.festivo { background: #FDECEA; }
+.dia.festivo .numero { color: #C0392B; }
+.dia.festivo.otro-mes .numero { color: #E8A39B; }
+
+.nombre-festivo {
+    position: relative;
+    display: block;
+    margin: 24px 0 2px;
+    color: #C0392B;
+    font-size: .64rem;
+    font-weight: 700;
+    line-height: 1.15;
+    text-align: right;
+    text-transform: uppercase;
+    letter-spacing: .02em;
+    overflow-wrap: anywhere;
+    pointer-events: none;
+}
+
+.dia.festivo .mis-turnos,
+.dia.festivo .personas-dia { margin-top: 4px; }

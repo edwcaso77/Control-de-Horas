@@ -18,6 +18,8 @@
     </div>
 </header>
 
+{% if festivo %}<div class="aviso-festivo">Festivo: <strong>{{ festivo.nombre }}</strong></div>{% endif %}
+
 {% if es_admin %}
     <form method="get" class="filtros">
         <select name="area" aria-label="Área" onchange="this.form.submit()">

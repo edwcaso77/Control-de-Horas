@@ -50,9 +50,10 @@
 
         {% for semana in semanas %}
             {% for dia in semana %}
-                <div class="dia{% if dia.otro_mes %} otro-mes{% endif %}{% if dia.fin_de_semana %} fin-de-semana{% endif %}{% if dia.es_hoy %} hoy{% endif %}"
-                     data-fecha="{{ dia.fecha|date:'Y-m-d' }}">
+                <div class="dia{% if dia.otro_mes %} otro-mes{% endif %}{% if dia.fin_de_semana %} fin-de-semana{% endif %}{% if dia.es_hoy %} hoy{% endif %}{% if dia.festivo %} festivo{% endif %}"
+                     data-fecha="{{ dia.fecha|date:'Y-m-d' }}"{% if dia.festivo %} title="Festivo: {{ dia.festivo }}"{% endif %}>
                     <span class="numero">{{ dia.fecha.day|stringformat:"02d" }}</span>
+                    {% if dia.festivo %}<span class="nombre-festivo">{{ dia.festivo }}</span>{% endif %}
                     {% block dia %}{% endblock %}
                 </div>
             {% endfor %}

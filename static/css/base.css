@@ -471,3 +471,18 @@ input:focus, select:focus {
 .aviso-contrasenas div { margin-top: 8px; }
 .clave { padding: 2px 8px; border-radius: 4px; background: var(--fondo-suave); font-size: .95rem; }
 input[type="file"] { padding: 6px; border: 1px dashed var(--borde); border-radius: 6px; background: #fff; font: inherit; }
+
+/* Aviso de día festivo en las páginas de un día */
+.aviso-festivo {
+    display: inline-block;
+    margin: 0 0 14px;
+    padding: 6px 14px;
+    border-left: 4px solid #C0392B;
+    border-radius: 6px;
+    background: #FDECEA;
+    color: #C0392B;
+}
+
+/* Pantalla de festivos */
+.acciones-festivos { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
+.acciones-festivos form { margin: 0; }

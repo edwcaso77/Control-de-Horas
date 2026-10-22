@@ -138,3 +138,59 @@ class ConsultaDiaTests(TestCase):
         self.assertEqual(respuesta.status_code, 403)
         self.assertContains(respuesta, 'Esta sección es solo para administradores', status_code=403)
         self.assertContains(respuesta, 'Volver al calendario', status_code=403)
+
+
+class FestivosTests(TestCase):
+    def test_festivos_de_colombia_2026(self):
+        from .festivos_colombia import festivos
+        fechas = [f for f, _ in festivos(2026)]
+        esperados = [(1, 1), (1, 12), (3, 23), (4, 2), (4, 3), (5, 1), (5, 18), (6, 8), (6, 15), (6, 29),
+                     (7, 20), (8, 7), (8, 17), (10, 12), (11, 2), (11, 16), (12, 8), (12, 25)]
+        self.assertEqual(fechas, [datetime.date(2026, m, d) for m, d in esperados])
+
+    def test_festivos_de_colombia_2025_con_ley_emiliani(self):
+        from .festivos_colombia import domingo_de_pascua, festivos
+        self.assertEqual(domingo_de_pascua(2025), datetime.date(2025, 4, 20))
+        nombres = {f: n for f, n in festivos(2025)}
+        self.assertEqual(nombres[datetime.date(2025, 3, 24)], 'Día de San José')       # 19 de marzo → lunes
+        self.assertEqual(nombres[datetime.date(2025, 4, 18)], 'Viernes Santo')
+        self.assertEqual(nombres[datetime.date(2025, 6, 2)], 'Ascensión del Señor')
+        self.assertEqual(nombres[datetime.date(2025, 10, 13)], 'Día de la Raza')
+
+    def test_migracion_cargo_2025_a_2030(self):
+        from .models import Festivo
+        self.assertTrue(Festivo.objects.filter(fecha=datetime.date(2030, 12, 25)).exists())
+        self.assertFalse(Festivo.objects.filter(fecha__year=2031).exists())
+
+    def test_calendario_marca_los_festivos(self):
+        self.client.force_login(get_user_model().objects.create_user('prueba'))
+        respuesta = self.client.get(reverse('calendario:mes'), {'anio': 2026, 'mes': 10})
+        dia = next(d for s in respuesta.context['semanas'] for d in s if d['fecha'] == datetime.date(2026, 10, 12))
+        self.assertEqual(dia['festivo'], 'Día de la Raza')
+        self.assertContains(respuesta, 'class="nombre-festivo">Día de la Raza</span>')
+        self.assertContains(self.client.get('/dia/2026/10/12/'), 'Festivo: <strong>Día de la Raza</strong>')
+
+    def test_administrador_gestiona_festivos(self):
+        from funcionarios.tests import crear_funcionario
+        from .models import Festivo
+        self.client.force_login(crear_funcionario('1000', es_administrador=True).usuario)
+        url = reverse('calendario:festivos')
+        self.assertEqual(len(self.client.get(url, {'anio': 2026}).context['festivos']), 18)
+
+        self.client.post(url, {'accion': 'agregar', 'anio': 2026, 'fecha': '2026-09-15', 'nombre': 'Fiesta local'})
+        self.assertTrue(Festivo.objects.filter(fecha=datetime.date(2026, 9, 15), nombre='Fiesta local').exists())
+        respuesta = self.client.post(url, {'accion': 'agregar', 'anio': 2026, 'fecha': '2026-09-15', 'nombre': 'Repetido'})
+        self.assertTrue(respuesta.context['form'].errors)
+
+        local = Festivo.objects.get(nombre='Fiesta local')
+        self.client.post(url, {'accion': 'quitar', 'anio': 2026, 'pk': local.pk})
+        self.assertFalse(Festivo.objects.filter(pk=local.pk).exists())
+
+        Festivo.objects.filter(fecha__year=2031).delete()
+        self.client.post(url, {'accion': 'cargar', 'anio': 2031})
+        self.assertEqual(Festivo.objects.filter(fecha__year=2031).count(), 18)
+
+    def test_funcionario_no_entra_a_festivos(self):
+        from funcionarios.tests import crear_funcionario
+        self.client.force_login(crear_funcionario('2000').usuario)
+        self.assertEqual(self.client.get(reverse('calendario:festivos')).status_code, 403)
