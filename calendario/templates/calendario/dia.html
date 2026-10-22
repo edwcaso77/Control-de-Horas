@@ -76,6 +76,13 @@
     </div>
 {% endif %}
 
+{% if puede_solicitar and not solicitud_sin_turno %}
+    <p class="hora-extra-sin-turno">
+        <a class="boton boton-pequeno" href="{% url 'horas_extra:solicitar_sin_turno' %}?fecha={{ fecha|date:'Y-m-d' }}">Solicitar hora extra sin turno</a>
+        <small class="ayuda">Si trabajó este día sin tener turno asignado (por ejemplo, le pidieron venir un domingo).</small>
+    </p>
+{% endif %}
+
 {% if mis_solicitudes %}
     <section class="mis-solicitudes">
         <h2>Mis solicitudes de hora extra</h2>

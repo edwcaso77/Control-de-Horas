@@ -74,6 +74,7 @@ def dia(request, anio, mes, dia):
         'puede_solicitar': fecha <= timezone.localdate(),
         'mis_solicitudes': mis_solicitudes,
         'turnos_con_solicitud': turnos_con_solicitud,
+        'solicitud_sin_turno': any(s.turno_id is None for s in mis_solicitudes),
         'areas': Area.objects.filter(activo=True) if admin else [],
         'area': area,
     })

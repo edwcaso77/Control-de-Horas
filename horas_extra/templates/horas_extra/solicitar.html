@@ -8,16 +8,25 @@
 {% block contenido %}
 <header class="encabezado-pagina">
     <h1>Solicitar hora extra</h1>
-    <a class="boton" href="{% url 'calendario:dia' turno.fecha.year turno.fecha.month turno.fecha.day %}">Volver al día</a>
+    {% if turno %}
+        <a class="boton" href="{% url 'calendario:dia' turno.fecha.year turno.fecha.month turno.fecha.day %}">Volver al día</a>
+    {% else %}
+        <a class="boton" href="{% url 'calendario:mes' %}">Volver al calendario</a>
+    {% endif %}
 </header>
 
-<div class="resumen-turno">
-    <span class="chip" style="background: {{ turno.tipo_turno.color }}; color: {{ turno.tipo_turno.color_texto }}">{{ turno.etiqueta }}</span>
-    <div>
-        <strong>{{ turno.fecha|date:'l j \d\e F \d\e Y'|capfirst }}</strong><br>
-        Turno {{ turno.tipo_turno.nombre }} · {{ turno.horario }}
+{% if turno %}
+    <div class="resumen-turno">
+        <span class="chip" style="background: {{ turno.tipo_turno.color }}; color: {{ turno.tipo_turno.color_texto }}">{{ turno.etiqueta }}</span>
+        <div>
+            <strong>{{ turno.fecha|date:'l j \d\e F \d\e Y'|capfirst }}</strong><br>
+            Turno {{ turno.tipo_turno.nombre }} · {{ turno.horario }}
+        </div>
     </div>
-</div>
+{% else %}
+    <p class="ayuda">Para horas trabajadas en un día <strong>sin turno asignado</strong>, por ejemplo un domingo o festivo
+        en que le pidieron trabajar. Si el tiempo fue a continuación de un turno, solicítelo desde ese turno en el calendario.</p>
+{% endif %}
 
 <form method="post" class="formulario" id="formulario-solicitud" novalidate>
     {% csrf_token %}
@@ -27,6 +36,7 @@
 
     <fieldset class="seccion-formulario">
         <legend>Tiempo adicional trabajado</legend>
+        {% if not turno %}<div style="max-width: 220px">{% include 'includes/campo.html' with campo=form.fecha %}</div>{% endif %}
         <div class="rejilla">
             {% include 'includes/campo.html' with campo=form.hora_inicio %}
             {% include 'includes/campo.html' with campo=form.hora_fin %}
@@ -40,16 +50,17 @@
 
     <div class="botones-formulario">
         <button type="submit" class="boton boton-primario">Enviar solicitud</button>
-        <a href="{% url 'calendario:dia' turno.fecha.year turno.fecha.month turno.fecha.day %}" class="boton">Cancelar</a>
+        <a href="{% if turno %}{% url 'calendario:dia' turno.fecha.year turno.fecha.month turno.fecha.day %}{% else %}{% url 'calendario:mes' %}{% endif %}" class="boton">Cancelar</a>
     </div>
 </form>
 
 <dialog class="ventana-confirmar" id="confirmar-solicitud" aria-labelledby="confirmar-titulo">
     <h2 id="confirmar-titulo">¿Está seguro?</h2>
-    <p class="aviso-una-vez">Solo se puede solicitar <strong>una vez</strong> la hora extra de este turno.
+    <p class="aviso-una-vez">Solo se puede solicitar <strong>una vez</strong> la hora extra de {% if turno %}este turno{% else %}este día{% endif %}.
         Revise que los datos estén bien antes de enviar.</p>
     <dl class="datos-solicitud">
-        <dt>Turno</dt><dd>{{ turno.etiqueta }} · {{ turno.fecha|date:'j \d\e F' }}</dd>
+        {% if turno %}<dt>Turno</dt><dd>{{ turno.etiqueta }} · {{ turno.fecha|date:'j \d\e F' }}</dd>
+        {% else %}<dt>Día</dt><dd id="confirmar-fecha"></dd>{% endif %}
         <dt>Desde</dt><dd id="confirmar-desde"></dd>
         <dt>Hasta</dt><dd id="confirmar-hasta"></dd>
         <dt>Total</dt><dd id="confirmar-total"></dd>

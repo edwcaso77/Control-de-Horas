@@ -18,6 +18,7 @@
 
         <nav class="menu">
             <a href="{% url 'calendario:mes' %}" class="{% if app == 'calendario' and vista != 'festivos' %}activo{% endif %}">Calendario</a>
+            <a href="{% url 'horas_extra:solicitar_sin_turno' %}" class="{% if vista == 'solicitar_sin_turno' %}activo{% endif %}">Solicitar hora extra</a>
 
             {% if es_admin %}
                 <span class="menu-titulo">Administración</span>

@@ -1,3 +1,5 @@
+import datetime
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import Http404
@@ -8,7 +10,7 @@ from django.views.decorators.http import require_POST
 from funcionarios.permisos import administrador_requerido
 from turnos.models import AsignacionTurno
 
-from .forms import RevisionForm, SolicitudForm
+from .forms import RevisionForm, SolicitudForm, SolicitudSinTurnoForm
 from .models import SolicitudHoraExtra
 
 
@@ -42,6 +44,30 @@ def solicitar(request, turno_id):
         messages.success(request, f'Solicitud de hora extra enviada ({solicitud.horas_texto}). El administrador la revisará.')
         return _volver_al_dia(turno.fecha)
     return render(request, 'horas_extra/solicitar.html', {'form': form, 'turno': turno})
+
+
+@login_required
+def solicitar_sin_turno(request):
+    """El funcionario solicita hora extra de un día en que no tenía turno (ej.: lo llamaron a trabajar un domingo)."""
+    funcionario = getattr(request.user, 'funcionario', None)
+    if funcionario is None:
+        raise Http404
+    hoy = timezone.localdate()
+    try:
+        inicial = datetime.date.fromisoformat(request.GET.get('fecha', ''))
+    except ValueError:
+        inicial = hoy
+    form = SolicitudSinTurnoForm(request.POST or None, initial={'fecha': min(inicial, hoy)}, funcionario=funcionario, hoy=hoy)
+    if form.is_valid():
+        solicitud = form.save(commit=False)
+        if SolicitudHoraExtra.objects.filter(funcionario=funcionario, fecha=solicitud.fecha, turno__isnull=True).exists():
+            messages.error(request, 'Ya solicitó hora extra sin turno para ese día. Solo se puede solicitar una vez.')
+            return _volver_al_dia(solicitud.fecha)
+        solicitud.funcionario = funcionario
+        solicitud.save()
+        messages.success(request, f'Solicitud de hora extra enviada ({solicitud.horas_texto}). El administrador la revisará.')
+        return _volver_al_dia(solicitud.fecha)
+    return render(request, 'horas_extra/solicitar.html', {'form': form, 'turno': None})
 
 
 @require_POST
