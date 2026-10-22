@@ -76,7 +76,8 @@ def conteo_excel(request):
     hoja['A1'] = f'Conteo de horas · semana del {lunes:%d/%m/%Y} al {domingo:%d/%m/%Y}' + (f' · {area}' if area else '')
     hoja['A1'].font = fuente(bold=True, size=13)
     hoja['A2'] = (f'Nocturna: {INICIO_NOCHE:%H:%M} a {FIN_NOCHE:%H:%M}. Festivo: domingos y festivos. '
-                  'Horas extra: solicitudes aprobadas. Recargo nocturno y diurna festivo: turnos asignados.')
+                  'Horas extra: solicitudes aprobadas. Recargo nocturno y diurna festivo: turnos asignados. '
+                  'Total horas: turnos más horas extra aprobadas.')
     hoja['A2'].font = fuente(italic=True, size=9, color='666666')
 
     encabezados = ['FECHA', 'NOMBRE', 'SECCION', 'ACTIVIDAD'] + [texto for _, texto in COLUMNAS_HORAS]
@@ -86,7 +87,7 @@ def conteo_excel(request):
         celda.font = fuente(bold=True)
         celda.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
         celda.border = borde
-        celda.fill = PatternFill('solid', fgColor='D9D9D9' if texto == 'RECARGO NOCTURNO' else 'FFFFFF')
+        celda.fill = PatternFill('solid', fgColor='D9D9D9' if texto in ('RECARGO NOCTURNO', 'TOTAL HORAS') else 'FFFFFF')
     hoja.row_dimensions[fila_encabezado].height = 45
     for col, ancho in enumerate([12, 32, 22, 30] + [14] * len(COLUMNAS_HORAS), start=1):
         hoja.column_dimensions[get_column_letter(col)].width = ancho

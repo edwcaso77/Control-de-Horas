@@ -24,7 +24,7 @@
 </form>
 
 <p class="ayuda">Nocturna de {{ inicio_noche|time:'H:i' }} a {{ fin_noche|time:'H:i' }}. Festivo: domingos y festivos.
-    Horas extra: solicitudes <strong>aprobadas</strong> (tiempo aprobado). Recargo nocturno y diurna festivo: turnos asignados.</p>
+    Horas extra: solicitudes <strong>aprobadas</strong> (tiempo aprobado). Recargo nocturno y diurna festivo: turnos asignados. Total horas: turnos más horas extra aprobadas.</p>
 
 <div class="tabla-contenedor">
     <table class="tabla tabla-conteo">
@@ -34,7 +34,7 @@
                 <th>NOMBRE</th>
                 <th>SECCION</th>
                 <th>ACTIVIDAD</th>
-                {% for clave, texto in columnas %}<th class="horas{% if clave == 'recargo_nocturno' %} recargo{% endif %}">{{ texto }}</th>{% endfor %}
+                {% for clave, texto in columnas %}<th class="horas{% if clave == 'recargo_nocturno' %} recargo{% endif %}{% if clave == 'total_horas' %} total{% endif %}">{{ texto }}</th>{% endfor %}
             </tr>
         </thead>
         <tbody>
@@ -45,22 +45,22 @@
                         <td>{{ fila.funcionario.apellidos }}, {{ fila.funcionario.nombres }}</td>
                         <td>{{ fila.seccion }}</td>
                         <td>{{ fila.actividad }}</td>
-                        {% for valor in fila.valores %}<td class="horas{% if forloop.counter == columna_recargo %} recargo{% endif %}">{% if valor %}{{ valor|floatformat:"-2" }}{% else %}–{% endif %}</td>{% endfor %}
+                        {% for valor in fila.valores %}<td class="horas{% if forloop.counter == columna_recargo %} recargo{% endif %}{% if forloop.last %} total{% endif %}">{% if valor %}{{ valor|floatformat:"-2" }}{% else %}–{% endif %}</td>{% endfor %}
                     </tr>
                 {% endfor %}
                 <tr class="fila-total-funcionario">
                     <td colspan="4">Total {{ grupo.funcionario.nombre_completo }}</td>
-                    {% for valor in grupo.total %}<td class="horas{% if forloop.counter == columna_recargo %} recargo{% endif %}">{% if valor %}{{ valor|floatformat:"-2" }}{% else %}–{% endif %}</td>{% endfor %}
+                    {% for valor in grupo.total %}<td class="horas{% if forloop.counter == columna_recargo %} recargo{% endif %}{% if forloop.last %} total{% endif %}">{% if valor %}{{ valor|floatformat:"-2" }}{% else %}–{% endif %}</td>{% endfor %}
                 </tr>
             {% empty %}
-                <tr><td colspan="10" class="vacio">No hay horas extra aprobadas ni recargos esta semana{% if area %} en {{ area }}{% endif %}.</td></tr>
+                <tr><td colspan="11" class="vacio">No hay turnos ni horas extra aprobadas esta semana{% if area %} en {{ area }}{% endif %}.</td></tr>
             {% endfor %}
         </tbody>
         {% if grupos %}
             <tfoot>
                 <tr class="fila-total-general">
                     <td colspan="4">TOTAL</td>
-                    {% for valor in total_general %}<td class="horas{% if forloop.counter == columna_recargo %} recargo{% endif %}">{% if valor %}{{ valor|floatformat:"-2" }}{% else %}–{% endif %}</td>{% endfor %}
+                    {% for valor in total_general %}<td class="horas{% if forloop.counter == columna_recargo %} recargo{% endif %}{% if forloop.last %} total{% endif %}">{% if valor %}{{ valor|floatformat:"-2" }}{% else %}–{% endif %}</td>{% endfor %}
                 </tr>
             </tfoot>
         {% endif %}

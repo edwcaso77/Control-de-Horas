@@ -16,6 +16,7 @@ COLUMNAS_HORAS = [
     ('extra_nocturna_festiva', 'HORA EXTRA NOCTURNA FESTIVAS'),
     ('recargo_nocturno', 'RECARGO NOCTURNO'),
     ('diurna_festivo', 'DIURNA FESTIVO'),
+    ('total_horas', 'TOTAL HORAS'),
 ]
 CLAVES = [clave for clave, _ in COLUMNAS_HORAS]
 
@@ -27,11 +28,12 @@ def semana_de(fecha):
 
 
 def conteo_semana(lunes, area=None):
-    """Filas del conteo de una semana: una por funcionario y día con horas para la nómina.
+    """Filas del conteo de una semana: una por funcionario y día trabajado.
 
     - Horas extra: de las solicitudes aprobadas (tiempo aprobado).
     - Recargo nocturno: horas de los turnos asignados que caen de noche (incluye noches de domingo o festivo).
     - Diurna festivo: horas de los turnos asignados en domingo o festivo, de día.
+    - Total horas: horas de los turnos asignados más las horas extra aprobadas.
     Devuelve (filas, totales_por_funcionario, total_general).
     """
     domingo = lunes + datetime.timedelta(days=6)
@@ -54,6 +56,7 @@ def conteo_semana(lunes, area=None):
     for asignacion in turnos:
         fila = filas[(asignacion.funcionario, asignacion.fecha)]
         fila['turnos'].append(asignacion.etiqueta)
+        fila['horas']['total_horas'] += asignacion.horas_trabajadas
         for desde, hasta in intervalos_de_turno(asignacion):
             horas = clasificar(desde, hasta, festivos)
             fila['horas']['recargo_nocturno'] += horas[NOCTURNA] + horas[NOCTURNA_FESTIVA]
@@ -62,6 +65,7 @@ def conteo_semana(lunes, area=None):
     for solicitud in extras:
         fila = filas[(solicitud.funcionario, solicitud.fecha)]
         fila['motivos'].append(solicitud.motivo)
+        fila['horas']['total_horas'] += solicitud.horas
         horas = clasificar(*intervalo(solicitud.fecha, solicitud.hora_inicio, solicitud.hora_fin), festivos)
         fila['horas']['extra_diurna'] += horas[DIURNA]
         fila['horas']['extra_nocturna'] += horas[NOCTURNA]
@@ -71,8 +75,6 @@ def conteo_semana(lunes, area=None):
     resultado = []
     for (funcionario, fecha), datos in filas.items():
         horas = {clave: round(valor, 2) for clave, valor in datos['horas'].items()}
-        if not any(horas.values()):
-            continue  # días sin horas extra ni recargos no se listan
         actividad = ' + '.join(sorted(datos['turnos']))
         if datos['motivos']:
             actividad = f'{actividad} · Hora extra: {"; ".join(datos["motivos"])}' if actividad else f'Hora extra: {"; ".join(datos["motivos"])}'

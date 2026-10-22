@@ -71,7 +71,9 @@ class ConteoSemanaTests(TestCase):
         filas, totales, total = conteo_semana(LUNES)
 
         por_fecha = {fila['fecha']: fila for fila in filas}
-        self.assertEqual(set(por_fecha), {LUNES, MARTES, DOMINGO})  # el sábado solo tiene HC y una pendiente
+        self.assertEqual(set(por_fecha), {LUNES, MARTES, SABADO, DOMINGO})
+        self.assertEqual(por_fecha[SABADO]['horas']['total_horas'], 2)  # HC 2h; la solicitud pendiente no cuenta
+        self.assertEqual(por_fecha[MARTES]['horas']['total_horas'], 14)  # turno N de 12 h + 2 h extra
         self.assertEqual(por_fecha[LUNES]['horas']['extra_diurna_festiva'], 1)
         self.assertEqual(por_fecha[LUNES]['horas']['extra_nocturna_festiva'], 1)
         self.assertEqual(por_fecha[MARTES]['horas']['recargo_nocturno'], 11)  # 19:00 a 06:00
@@ -83,7 +85,7 @@ class ConteoSemanaTests(TestCase):
         self.assertEqual(totales[self.ana]['recargo_nocturno'], 12)
         self.assertEqual(total, {
             'extra_diurna': 2, 'extra_nocturna': 0, 'extra_diurna_festiva': 1, 'extra_nocturna_festiva': 1,
-            'recargo_nocturno': 12, 'diurna_festivo': 8,
+            'recargo_nocturno': 12, 'diurna_festivo': 8, 'total_horas': 27,
         })
 
     def test_filtra_por_seccion(self):
@@ -110,7 +112,8 @@ class ConteoSemanaTests(TestCase):
         hoja = load_workbook(io.BytesIO(archivo.content)).active
         self.assertEqual([c.value for c in hoja[4]], [
             'FECHA', 'NOMBRE', 'SECCION', 'ACTIVIDAD', 'HORA EXTRA DIURNAS', 'HORA EXTRA NOCTURNA',
-            'HORA EXTRA DIURNA FESTIVAS', 'HORA EXTRA NOCTURNA FESTIVAS', 'RECARGO NOCTURNO', 'DIURNA FESTIVO',
+            'HORA EXTRA DIURNA FESTIVAS', 'HORA EXTRA NOCTURNA FESTIVAS', 'RECARGO NOCTURNO', 'DIURNA FESTIVO', 'TOTAL HORAS',
         ])
         self.assertEqual(hoja['I5'].value, 11)
-        self.assertEqual(hoja['I6'].value, '=SUM(I5:I5)')
+        self.assertEqual(hoja['K5'].value, 12)
+        self.assertEqual(hoja['K6'].value, '=SUM(K5:K5)')
