@@ -47,11 +47,23 @@ a { color: var(--azul); }
 
 .marca {
     display: flex;
-    align-items: center;
+    flex-direction: column;
+    align-items: stretch;
     gap: 10px;
-    padding: 0 20px 20px;
-    font-size: 1.15rem;
+    padding: 0 16px 20px;
+    font-size: 1.1rem;
     font-weight: 700;
+    text-align: center;
+}
+
+/* El logo tiene letras oscuras: va sobre un recuadro blanco para que se lea en el menú azul. */
+.marca-logo {
+    display: block;
+    width: 100%;
+    height: auto;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: #fff;
 }
 
 .marca-icono {
@@ -327,8 +339,11 @@ input:focus, select:focus {
     box-shadow: 0 12px 40px rgba(0, 0, 0, .25);
 }
 
+.marca-ingreso .marca-logo {
+    padding: 0;
+}
+
 .marca-ingreso {
-    justify-content: center;
     padding: 0 0 24px;
     color: var(--azul-marino);
     font-size: 1.4rem;
@@ -338,7 +353,8 @@ input:focus, select:focus {
 @media (max-width: 800px) {
     .aplicacion { flex-direction: column; height: auto; min-height: 100vh; }
     .menu-lateral { flex: none; padding: 12px 0; }
-    .marca { padding-bottom: 8px; }
+    .menu-lateral .marca { padding-bottom: 8px; flex-direction: row; align-items: center; text-align: left; }
+    .menu-lateral .marca-logo { width: 160px; }
     .menu { flex-direction: row; flex-wrap: wrap; }
     .menu a { border-left: 0; border-bottom: 3px solid transparent; padding: 8px 14px; }
     .menu a.activo { border-bottom-color: var(--azul-claro); }

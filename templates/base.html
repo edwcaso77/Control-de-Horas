@@ -4,7 +4,8 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block titulo %}Inicio{% endblock %} · Control de Horas</title>
-    <link rel="stylesheet" href="{% static 'css/base.css' %}">
+    <link rel="icon" type="image/png" href="{% static 'img/icono.png' %}">
+    <link rel="stylesheet" href="{% static 'css/base.css' %}?v=3">
     {% block estilos %}{% endblock %}
 </head>
 <body>
@@ -12,7 +13,7 @@
     {% with app=request.resolver_match.app_name vista=request.resolver_match.url_name tipo=request.resolver_match.kwargs.tipo %}
     <aside class="menu-lateral">
         <div class="marca">
-            <span class="marca-icono" aria-hidden="true">+</span>
+            <img class="marca-logo" src="{% static 'img/logo.png' %}" alt="Ures Medical Center IPS S.A.S">
             <span>Control de Horas</span>
         </div>
 
