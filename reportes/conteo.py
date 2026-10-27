@@ -16,6 +16,8 @@ COLUMNAS_HORAS = [
     ('extra_nocturna_festiva', 'HORA EXTRA NOCTURNA FESTIVAS'),
     ('recargo_nocturno', 'RECARGO NOCTURNO'),
     ('diurna_festivo', 'DIURNA FESTIVO'),
+    ('nocturna_festiva', 'NOCTURNAS FESTIVAS'),
+    ('recargo_nocturno_festivo', 'RECARGO NOCTURNO FESTIVO'),
     ('total_horas', 'TOTAL HORAS'),
 ]
 CLAVES = [clave for clave, _ in COLUMNAS_HORAS]
@@ -31,8 +33,9 @@ def conteo_semana(lunes, area=None):
     """Filas del conteo de una semana: una por funcionario y día trabajado.
 
     - Horas extra: de las solicitudes aprobadas (tiempo aprobado).
-    - Recargo nocturno: horas de los turnos asignados que caen de noche (incluye noches de domingo o festivo).
+    - Recargo nocturno: horas de los turnos asignados que caen de noche en día ordinario.
     - Diurna festivo: horas de los turnos asignados en domingo o festivo, de día.
+    - Nocturnas festivas y recargo nocturno festivo: horas de los turnos asignados en domingo o festivo, de noche.
     - Total horas: horas de los turnos asignados más las horas extra aprobadas.
     Devuelve (filas, totales_por_funcionario, total_general).
     """
@@ -59,8 +62,10 @@ def conteo_semana(lunes, area=None):
         fila['horas']['total_horas'] += asignacion.horas_trabajadas
         for desde, hasta in intervalos_de_turno(asignacion):
             horas = clasificar(desde, hasta, festivos)
-            fila['horas']['recargo_nocturno'] += horas[NOCTURNA] + horas[NOCTURNA_FESTIVA]
+            fila['horas']['recargo_nocturno'] += horas[NOCTURNA]
             fila['horas']['diurna_festivo'] += horas[DIURNA_FESTIVA]
+            fila['horas']['nocturna_festiva'] += horas[NOCTURNA_FESTIVA]
+            fila['horas']['recargo_nocturno_festivo'] += horas[NOCTURNA_FESTIVA]
 
     for solicitud in extras:
         fila = filas[(solicitud.funcionario, solicitud.fecha)]

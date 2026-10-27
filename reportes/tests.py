@@ -79,13 +79,16 @@ class ConteoSemanaTests(TestCase):
         self.assertEqual(por_fecha[MARTES]['horas']['recargo_nocturno'], 11)  # 19:00 a 06:00
         self.assertEqual(por_fecha[MARTES]['horas']['extra_diurna'], 2)
         self.assertEqual(por_fecha[MARTES]['actividad'], 'N · Hora extra: Paciente crítico')
-        self.assertEqual(por_fecha[DOMINGO]['horas']['recargo_nocturno'], 1)  # 05:00 a 06:00
+        self.assertEqual(por_fecha[DOMINGO]['horas']['recargo_nocturno'], 0)
+        self.assertEqual(por_fecha[DOMINGO]['horas']['nocturna_festiva'], 1)  # 05:00 a 06:00
+        self.assertEqual(por_fecha[DOMINGO]['horas']['recargo_nocturno_festivo'], 1)
         self.assertEqual(por_fecha[DOMINGO]['horas']['diurna_festivo'], 8)
         self.assertEqual(por_fecha[DOMINGO]['seccion'], 'Urgencias')
-        self.assertEqual(totales[self.ana]['recargo_nocturno'], 12)
+        self.assertEqual(totales[self.ana]['recargo_nocturno'], 11)
         self.assertEqual(total, {
             'extra_diurna': 2, 'extra_nocturna': 0, 'extra_diurna_festiva': 1, 'extra_nocturna_festiva': 1,
-            'recargo_nocturno': 12, 'diurna_festivo': 8, 'total_horas': 27,
+            'recargo_nocturno': 11, 'diurna_festivo': 8, 'nocturna_festiva': 1, 'recargo_nocturno_festivo': 1,
+            'total_horas': 27,
         })
 
     def test_filtra_por_seccion(self):
@@ -112,8 +115,9 @@ class ConteoSemanaTests(TestCase):
         hoja = load_workbook(io.BytesIO(archivo.content)).active
         self.assertEqual([c.value for c in hoja[4]], [
             'FECHA', 'NOMBRE', 'SECCION', 'ACTIVIDAD', 'HORA EXTRA DIURNAS', 'HORA EXTRA NOCTURNA',
-            'HORA EXTRA DIURNA FESTIVAS', 'HORA EXTRA NOCTURNA FESTIVAS', 'RECARGO NOCTURNO', 'DIURNA FESTIVO', 'TOTAL HORAS',
+            'HORA EXTRA DIURNA FESTIVAS', 'HORA EXTRA NOCTURNA FESTIVAS', 'RECARGO NOCTURNO', 'DIURNA FESTIVO',
+            'NOCTURNAS FESTIVAS', 'RECARGO NOCTURNO FESTIVO', 'TOTAL HORAS',
         ])
         self.assertEqual(hoja['I5'].value, 11)
-        self.assertEqual(hoja['K5'].value, 12)
-        self.assertEqual(hoja['K6'].value, '=SUM(K5:K5)')
+        self.assertEqual(hoja['M5'].value, 12)
+        self.assertEqual(hoja['M6'].value, '=SUM(M5:M5)')

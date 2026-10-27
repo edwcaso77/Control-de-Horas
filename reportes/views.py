@@ -28,6 +28,15 @@ def _area_elegida(request):
     return Area.objects.filter(pk=area).first() if area.isdigit() else None
 
 
+def _celdas(horas):
+    """(valor, clase css) de cada columna de horas, en orden."""
+    return [(horas[c], CLASES.get(c, '')) for c in CLAVES]
+
+
+# Columnas resaltadas en la tabla y en el Excel.
+CLASES = {'recargo_nocturno': 'recargo', 'recargo_nocturno_festivo': 'recargo', 'total_horas': 'total'}
+
+
 @administrador_requerido
 def conteo(request):
     """Conteo de horas de una semana (lunes a domingo) con las columnas del formato de nómina."""
@@ -40,8 +49,8 @@ def conteo(request):
     for fila in filas:
         if not grupos or grupos[-1]['funcionario'] != fila['funcionario']:
             total = totales[fila['funcionario']]
-            grupos.append({'funcionario': fila['funcionario'], 'filas': [], 'total': [total[c] for c in CLAVES]})
-        grupos[-1]['filas'].append({**fila, 'valores': [fila['horas'][c] for c in CLAVES]})
+            grupos.append({'funcionario': fila['funcionario'], 'filas': [], 'total': _celdas(total)})
+        grupos[-1]['filas'].append({**fila, 'valores': _celdas(fila['horas'])})
 
     return render(request, 'reportes/conteo.html', {
         'lunes': lunes,
@@ -53,8 +62,7 @@ def conteo(request):
         'area': area,
         'grupos': grupos,
         'columnas': COLUMNAS_HORAS,
-        'total_general': [total_general[c] for c in CLAVES],
-        'columna_recargo': CLAVES.index('recargo_nocturno') + 1,
+        'total_general': _celdas(total_general),
         'inicio_noche': INICIO_NOCHE,
         'fin_noche': FIN_NOCHE,
     })
@@ -76,18 +84,18 @@ def conteo_excel(request):
     hoja['A1'] = f'Conteo de horas · semana del {lunes:%d/%m/%Y} al {domingo:%d/%m/%Y}' + (f' · {area}' if area else '')
     hoja['A1'].font = fuente(bold=True, size=13)
     hoja['A2'] = (f'Nocturna: {INICIO_NOCHE:%H:%M} a {FIN_NOCHE:%H:%M}. Festivo: domingos y festivos. '
-                  'Horas extra: solicitudes aprobadas. Recargo nocturno y diurna festivo: turnos asignados. '
+                  'Horas extra: solicitudes aprobadas. Recargos, diurna festivo y nocturnas festivas: turnos asignados. '
                   'Total horas: turnos más horas extra aprobadas.')
     hoja['A2'].font = fuente(italic=True, size=9, color='666666')
 
-    encabezados = ['FECHA', 'NOMBRE', 'SECCION', 'ACTIVIDAD'] + [texto for _, texto in COLUMNAS_HORAS]
+    encabezados = [(None, t) for t in ('FECHA', 'NOMBRE', 'SECCION', 'ACTIVIDAD')] + COLUMNAS_HORAS
     fila_encabezado = 4
-    for col, texto in enumerate(encabezados, start=1):
+    for col, (clave, texto) in enumerate(encabezados, start=1):
         celda = hoja.cell(row=fila_encabezado, column=col, value=texto)
         celda.font = fuente(bold=True)
         celda.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
         celda.border = borde
-        celda.fill = PatternFill('solid', fgColor='D9D9D9' if texto in ('RECARGO NOCTURNO', 'TOTAL HORAS') else 'FFFFFF')
+        celda.fill = PatternFill('solid', fgColor='D9D9D9' if CLASES.get(clave) else 'FFFFFF')
     hoja.row_dimensions[fila_encabezado].height = 45
     for col, ancho in enumerate([12, 32, 22, 30] + [14] * len(COLUMNAS_HORAS), start=1):
         hoja.column_dimensions[get_column_letter(col)].width = ancho
