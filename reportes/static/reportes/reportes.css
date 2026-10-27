@@ -43,9 +43,41 @@
     box-shadow: inset 0 0 0 999px rgba(0, 0, 0, 0.18);
 }
 
+.tabla-conteo .fila-total-funcionario {
+    cursor: pointer;
+}
+
 .tabla-conteo .fila-total-funcionario td {
     font-weight: 600;
+}
+
+.tabla-conteo .grupo-funcionario.abierto .fila-total-funcionario td {
     border-bottom: 2px solid #ccc;
+}
+
+.tabla-conteo .fila-detalle td {
+    font-size: 0.9rem;
+    color: #444;
+}
+
+.tabla-conteo .desplegar {
+    border: 0;
+    background: none;
+    padding: 0;
+    font: inherit;
+    font-weight: 400;
+    color: inherit;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.tabla-conteo .desplegar .flecha {
+    display: inline-block;
+    transition: transform 0.15s;
+}
+
+.tabla-conteo .abierto .desplegar .flecha {
+    transform: rotate(90deg);
 }
 
 .tabla-conteo .fila-total-general td {

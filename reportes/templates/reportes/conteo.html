@@ -3,7 +3,7 @@
 
 {% block titulo %}Conteo de horas{% endblock %}
 
-{% block estilos %}<link rel="stylesheet" href="{% static 'reportes/reportes.css' %}">{% endblock %}
+{% block estilos %}<link rel="stylesheet" href="{% static 'reportes/reportes.css' %}?v=2">{% endblock %}
 
 {% block contenido %}
 <header class="encabezado-pagina">
@@ -21,6 +21,7 @@
         <option value="">Todas las secciones</option>
         {% for a in areas %}<option value="{{ a.pk }}"{% if area and a.pk == area.pk %} selected{% endif %}>{{ a }}</option>{% endfor %}
     </select>
+    {% if grupos %}<button type="button" class="boton" id="desplegar-todo">Desplegar todo</button>{% endif %}
 </form>
 
 <p class="ayuda">Nocturna de {{ inicio_noche|time:'H:i' }} a {{ fin_noche|time:'H:i' }}. Festivo: domingos y festivos.
@@ -37,25 +38,34 @@
                 {% for clave, texto in columnas %}<th class="horas {% if clave == 'recargo_nocturno' or clave == 'recargo_nocturno_festivo' %}recargo{% elif clave == 'total_horas' %}total{% endif %}">{{ texto }}</th>{% endfor %}
             </tr>
         </thead>
-        <tbody>
-            {% for grupo in grupos %}
+        {% for grupo in grupos %}
+            <tbody class="grupo-funcionario">
+                <tr class="fila-total-funcionario">
+                    <td class="fecha">
+                        <button type="button" class="desplegar" aria-expanded="false" title="Ver el detalle por día">
+                            <span class="flecha" aria-hidden="true">&#9656;</span> {{ grupo.filas|length }} día{{ grupo.filas|length|pluralize }}
+                        </button>
+                    </td>
+                    <td>{{ grupo.funcionario.apellidos }}, {{ grupo.funcionario.nombres }}</td>
+                    <td>{{ grupo.filas.0.seccion }}</td>
+                    <td></td>
+                    {% for valor, clase in grupo.total %}<td class="horas {{ clase }}">{% if valor %}{{ valor|floatformat:"-2" }}{% else %}–{% endif %}</td>{% endfor %}
+                </tr>
                 {% for fila in grupo.filas %}
-                    <tr>
+                    <tr class="fila-detalle" hidden>
                         <td class="fecha">{{ fila.fecha|date:'D d/m'|capfirst }}</td>
-                        <td>{{ fila.funcionario.apellidos }}, {{ fila.funcionario.nombres }}</td>
-                        <td>{{ fila.seccion }}</td>
+                        <td></td>
+                        <td></td>
                         <td>{{ fila.actividad }}</td>
                         {% for valor, clase in fila.valores %}<td class="horas {{ clase }}">{% if valor %}{{ valor|floatformat:"-2" }}{% else %}–{% endif %}</td>{% endfor %}
                     </tr>
                 {% endfor %}
-                <tr class="fila-total-funcionario">
-                    <td colspan="4">Total {{ grupo.funcionario.nombre_completo }}</td>
-                    {% for valor, clase in grupo.total %}<td class="horas {{ clase }}">{% if valor %}{{ valor|floatformat:"-2" }}{% else %}–{% endif %}</td>{% endfor %}
-                </tr>
-            {% empty %}
+            </tbody>
+        {% empty %}
+            <tbody>
                 <tr><td colspan="13" class="vacio">No hay turnos ni horas extra aprobadas esta semana{% if area %} en {{ area }}{% endif %}.</td></tr>
-            {% endfor %}
-        </tbody>
+            </tbody>
+        {% endfor %}
         {% if grupos %}
             <tfoot>
                 <tr class="fila-total-general">
@@ -66,4 +76,34 @@
         {% endif %}
     </table>
 </div>
+
+<script>
+// Cada funcionario muestra solo su total; el detalle por día se despliega al hacer clic.
+(function () {
+    const grupos = document.querySelectorAll('.grupo-funcionario');
+    const todo = document.getElementById('desplegar-todo');
+
+    function mostrar(grupo, abierto) {
+        grupo.classList.toggle('abierto', abierto);
+        grupo.querySelector('.desplegar').setAttribute('aria-expanded', abierto);
+        grupo.querySelectorAll('.fila-detalle').forEach(f => { f.hidden = !abierto; });
+    }
+
+    function actualizarTodo() {
+        if (todo) todo.textContent = [...grupos].every(g => g.classList.contains('abierto')) ? 'Recoger todo' : 'Desplegar todo';
+    }
+
+    grupos.forEach(grupo => {
+        grupo.querySelector('.fila-total-funcionario').addEventListener('click', () => {
+            mostrar(grupo, !grupo.classList.contains('abierto'));
+            actualizarTodo();
+        });
+    });
+    if (todo) todo.addEventListener('click', () => {
+        const abrir = todo.textContent === 'Desplegar todo';
+        grupos.forEach(g => mostrar(g, abrir));
+        actualizarTodo();
+    });
+})();
+</script>
 {% endblock %}
