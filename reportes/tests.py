@@ -112,7 +112,8 @@ class ConteoSemanaTests(TestCase):
 
         archivo = self.client.get(reverse('reportes:conteo_excel'), {'semana': '2026-10-15'})
         self.assertEqual(archivo['Content-Disposition'], 'attachment; filename="conteo_horas_2026-10-12.xlsx"')
-        hoja = load_workbook(io.BytesIO(archivo.content)).active
+        libro = load_workbook(io.BytesIO(archivo.content))
+        hoja = libro.active
         self.assertEqual([c.value for c in hoja[4]], [
             'FECHA', 'NOMBRE', 'SECCION', 'ACTIVIDAD', 'HORA EXTRA DIURNAS', 'HORA EXTRA NOCTURNA',
             'HORA EXTRA DIURNA FESTIVAS', 'HORA EXTRA NOCTURNA FESTIVAS', 'RECARGO NOCTURNO', 'DIURNA FESTIVO',
@@ -121,3 +122,8 @@ class ConteoSemanaTests(TestCase):
         self.assertEqual(hoja['I5'].value, 11)
         self.assertEqual(hoja['M5'].value, 12)
         self.assertEqual(hoja['M6'].value, '=SUM(M5:M5)')
+
+        totales = libro['Total horas']
+        self.assertEqual(totales['A4'].value, 'Ana Pérez')
+        self.assertEqual(totales['K4'].value, "=SUMIF('Conteo de horas'!$B$5:$B$5,$A4,'Conteo de horas'!M$5:M$5)")
+        self.assertEqual(totales['K5'].value, '=SUM(K4:K4)')

@@ -125,6 +125,8 @@ def conteo_excel(request):
         celda.border = borde
     hoja.freeze_panes = hoja.cell(row=primera, column=1)
 
+    _hoja_totales(libro, hoja, filas, primera, ultima, lunes, domingo, area, fuente, borde)
+
     salida = io.BytesIO()
     libro.save(salida)
     respuesta = HttpResponse(
@@ -132,3 +134,51 @@ def conteo_excel(request):
     )
     respuesta['Content-Disposition'] = f'attachment; filename="conteo_horas_{lunes:%Y-%m-%d}.xlsx"'
     return respuesta
+
+
+def _hoja_totales(libro, detalle, filas, primera, ultima, lunes, domingo, area, fuente, borde):
+    """Hoja con el total de horas de la semana por funcionario; suma con fórmulas la hoja del detalle."""
+    hoja = libro.create_sheet('Total horas')
+    hoja['A1'] = f'Total de horas · semana del {lunes:%d/%m/%Y} al {domingo:%d/%m/%Y}' + (f' · {area}' if area else '')
+    hoja['A1'].font = fuente(bold=True, size=13)
+
+    fila_encabezado = 3
+    encabezados = [(None, 'NOMBRE'), (None, 'SECCION')] + COLUMNAS_HORAS
+    for col, (clave, texto) in enumerate(encabezados, start=1):
+        celda = hoja.cell(row=fila_encabezado, column=col, value=texto)
+        celda.font = fuente(bold=True)
+        celda.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+        celda.border = borde
+        celda.fill = PatternFill('solid', fgColor='D9D9D9' if CLASES.get(clave) else 'FFFFFF')
+    hoja.row_dimensions[fila_encabezado].height = 45
+    for col, ancho in enumerate([32, 22] + [14] * len(COLUMNAS_HORAS), start=1):
+        hoja.column_dimensions[get_column_letter(col)].width = ancho
+
+    # Un renglón por funcionario, en el mismo orden del detalle.
+    personas = list(dict.fromkeys((f['funcionario'].nombre_completo, f['seccion']) for f in filas))
+    nombres = f"'{detalle.title}'!$B${primera}:$B${max(ultima, primera)}"
+    inicio = fila_encabezado + 1
+    for i, (nombre, seccion) in enumerate(personas):
+        r = inicio + i
+        for col, valor in enumerate([nombre, seccion], start=1):
+            celda = hoja.cell(row=r, column=col, value=valor)
+            celda.font = fuente()
+            celda.border = borde
+        for j in range(len(COLUMNAS_HORAS)):
+            letra = get_column_letter(5 + j)  # columna de la misma hora en el detalle
+            rango = f"'{detalle.title}'!{letra}${primera}:{letra}${max(ultima, primera)}"
+            celda = hoja.cell(row=r, column=3 + j, value=f'=SUMIF({nombres},$A{r},{rango})')
+            celda.font = fuente()
+            celda.number_format = '0.00;-0.00;-'
+            celda.border = borde
+
+    fila_total = inicio + len(personas)
+    hoja.cell(row=fila_total, column=2, value='TOTAL').font = fuente(bold=True)
+    for col in range(3, 3 + len(COLUMNAS_HORAS)):
+        letra = get_column_letter(col)
+        celda = hoja.cell(row=fila_total, column=col,
+                          value=f'=SUM({letra}{inicio}:{letra}{fila_total - 1})' if personas else 0)
+        celda.font = fuente(bold=True)
+        celda.number_format = '0.00;-0.00;-'
+        celda.border = borde
+    hoja.freeze_panes = hoja.cell(row=inicio, column=2)
