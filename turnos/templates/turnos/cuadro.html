@@ -27,6 +27,7 @@
             </span>
         {% endfor %}
         <button type="button" class="boton boton-pequeno" id="seleccionar-sin-domingos">Seleccionar el mes sin domingos</button>
+        <a class="boton boton-pequeno boton-verde" href="{% url 'turnos:subir_excel' %}">Subir cuadro desde Excel</a>
         <span class="leyenda-ayuda">Cada día muestra quién tiene turno y cuál · clic en el día para asignar sus turnos · marque la casilla para elegir varios días · clic en «Lunes», «Martes»… para elegir todos esos días del mes.</span>
     </div>
 

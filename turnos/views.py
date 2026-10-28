@@ -10,15 +10,17 @@ from django.db.models import Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from calendario.models import Festivo
-from calendario.utils import contexto_mes
+from calendario.utils import ANIO_MAX, ANIO_MIN, MESES, _entero, contexto_mes
 from funcionarios.models import Area, Cargo, Funcionario
 from funcionarios.permisos import administrador_requerido
 
 from .forms import TipoTurnoForm
 from .agrupar import turnos_por_dia
+from .importar import ErrorExcel, fechas_de, leer_excel
 from .models import TURNOS_POR_DIA, AsignacionTurno, TipoTurno, formato_horas
 
 
@@ -343,3 +345,86 @@ def tipo_estado(request, pk):
     tipo.save(update_fields=['activo'])
     messages.success(request, f'Turno «{tipo.nombre}» {"activado" if tipo.activo else "desactivado"}.')
     return redirect('turnos:tipos')
+
+
+SESION_EXCEL = 'cuadro_excel'
+TAMANO_MAXIMO_EXCEL = 10 * 1024 * 1024
+
+
+@administrador_requerido
+def subir_excel(request):
+    """Paso 1: se sube el Excel del cuadro de turno y se muestra lo que se va a cargar, hoja por hoja."""
+    hoy = timezone.localdate()
+    hojas = None
+    if request.method == 'POST':
+        archivo = request.FILES.get('archivo')
+        if not archivo:
+            messages.error(request, 'Elija el archivo de Excel del cuadro de turno.')
+        elif not archivo.name.lower().endswith('.xlsx'):
+            messages.error(request, 'El archivo debe ser un Excel .xlsx.')
+        elif archivo.size > TAMANO_MAXIMO_EXCEL:
+            messages.error(request, 'El archivo es demasiado grande (máximo 10 MB).')
+        else:
+            try:
+                hojas = leer_excel(archivo)
+            except ErrorExcel as error:
+                messages.error(request, str(error))
+            else:
+                if not hojas:
+                    messages.error(request, 'No se encontró ningún cuadro de turno en el archivo (fila «FECHAS / DIAS» con los días del mes).')
+                request.session[SESION_EXCEL] = {'archivo': archivo.name, 'hojas': hojas}
+    return render(request, 'turnos/subir_excel.html', {
+        'hojas': hojas,
+        'archivo': request.FILES.get('archivo'),
+        'meses': list(enumerate(MESES, start=1)),
+        # Años cercanos, más los que traiga el archivo.
+        'anios': sorted(set(range(hoy.year - 1, hoy.year + 3)) | {h['anio'] for h in hojas or [] if h['anio']}),
+        'tipos': TipoTurno.objects.filter(activo=True),
+    })
+
+
+@require_POST
+@administrador_requerido
+def cargar_excel(request):
+    """Paso 2: carga las hojas elegidas. Cada día que trae el Excel queda con los turnos del Excel."""
+    datos = request.session.get(SESION_EXCEL)
+    if not datos:
+        messages.error(request, 'Vuelva a subir el archivo: la vista previa ya no está disponible.')
+        return redirect('turnos:subir_excel')
+    tipos = {t.pk: t for t in TipoTurno.objects.all()}
+    funcionarios = {f.pk: f for f in Funcionario.objects.all()}
+    vaciar = request.POST.get('vaciar') == 'on'
+
+    resumen, primer_mes = [], None
+    with transaction.atomic():
+        for indice, hoja in enumerate(datos['hojas']):
+            if request.POST.get(f'hoja_{indice}') != 'on' or not hoja['total']:
+                continue
+            anio = _entero(request.POST.get(f'anio_{indice}'), 0, ANIO_MIN, ANIO_MAX)
+            mes = _entero(request.POST.get(f'mes_{indice}'), 0, 1, 12)
+            if not anio or not mes:
+                messages.error(request, f'Hoja «{hoja["hoja"]}»: elija el mes y el año del cuadro.')
+                transaction.set_rollback(True)
+                return redirect('turnos:subir_excel')
+            primer_mes = primer_mes or (anio, mes)
+            por_dia = fechas_de(hoja, anio, mes)
+            cambios = 0
+            if vaciar:
+                # Los días del mes que el Excel deja vacíos (vacaciones, descansos) quedan sin turno.
+                personas = {int(pk) for pk in hoja['turnos']}
+                sobrantes = AsignacionTurno.objects.filter(funcionario_id__in=personas, fecha__year=anio, fecha__month=mes)
+                for asignacion in sobrantes:
+                    if (asignacion.funcionario_id, asignacion.fecha) not in por_dia:
+                        asignacion.delete()
+                        cambios += 1
+            for (funcionario_id, fecha), turnos in por_dia.items():
+                elegidos = [(tipos[tipo_id], horas, inicio) for tipo_id, horas, inicio in turnos]
+                cambios += _aplicar_turnos(funcionarios[funcionario_id], [fecha], elegidos, request.user)
+            resumen.append(f'«{hoja["hoja"]}» {MESES[mes - 1].lower()} {anio}: {len(hoja["personas"])} funcionarios, {cambios} cambios')
+
+    if not resumen:
+        messages.error(request, 'Marque al menos una hoja para cargar.')
+        return redirect('turnos:subir_excel')
+    del request.session[SESION_EXCEL]
+    messages.success(request, 'Cuadro cargado desde Excel. ' + ' · '.join(resumen) + '.')
+    return redirect(f"{reverse('turnos:cuadro')}?{urlencode({'anio': primer_mes[0], 'mes': primer_mes[1]})}")

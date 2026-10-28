@@ -262,3 +262,76 @@
     gap: 8px;
     margin: 16px 0;
 }
+
+/* ---------- Subir cuadro desde Excel ---------- */
+.subir-excel {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-width: 760px;
+    margin-bottom: 24px;
+}
+
+.subir-excel-fila {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+
+.subir-excel-fila input[type=file] {
+    width: auto;
+    flex: 1 1 260px;
+}
+
+.ayuda-excel {
+    color: var(--texto-suave);
+    font-size: 0.9rem;
+}
+
+.ayuda-excel summary {
+    cursor: pointer;
+    color: var(--azul);
+}
+
+.ayuda-excel li {
+    margin: 4px 0;
+}
+
+.hoja-excel {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin-bottom: 12px;
+    background: #fff;
+}
+
+.hoja-sin-turnos {
+    background: var(--fondo-suave);
+}
+
+.hoja-excel-encabezado {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.hoja-excel-encabezado select {
+    width: auto;
+}
+
+.hoja-excel-titulo {
+    font-weight: 700;
+    margin-right: auto;
+}
+
+.persona-excel {
+    display: inline-block;
+    margin: 2px 12px 2px 0;
+}
+
+.vaciar-excel {
+    display: block;
+    margin-top: 16px;
+}

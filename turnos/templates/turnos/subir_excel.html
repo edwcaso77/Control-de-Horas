@@ -1,0 +1,97 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block titulo %}Subir cuadro desde Excel{% endblock %}
+
+{% block estilos %}<link rel="stylesheet" href="{% static 'turnos/turnos.css' %}?v=2">{% endblock %}
+
+{% block contenido %}
+<header class="encabezado-pagina">
+    <h1>Subir cuadro desde Excel</h1>
+    <a class="boton" href="{% url 'turnos:cuadro' %}">Volver al cuadro de turno</a>
+</header>
+
+<form method="post" enctype="multipart/form-data" class="subir-excel">
+    {% csrf_token %}
+    <label for="archivo"><strong>Archivo del cuadro de turno (.xlsx)</strong></label>
+    <div class="subir-excel-fila">
+        <input type="file" name="archivo" id="archivo" accept=".xlsx" required>
+        <button type="submit" class="boton boton-primario">Revisar archivo</button>
+    </div>
+    <details class="ayuda-excel">
+        <summary>¿Cómo debe estar el Excel?</summary>
+        <ul>
+            <li>Cada hoja es un cuadro, con el periodo (por ejemplo «OCTUBRE 2026») y la fila <strong>FECHAS / DIAS</strong> con los días 1, 2, 3…</li>
+            <li>Debajo, el nombre de cada funcionario y en cada día la abreviatura del turno. Si el nombre ocupa dos filas, son dos turnos el mismo día.</li>
+            <li>Los nombres deben estar escritos igual que en <a href="{% url 'funcionarios:lista' %}">Funcionarios</a> (no importan tildes ni mayúsculas).</li>
+            <li>Una <strong>F</strong> delante (FC1) es el mismo turno en festivo. Un <strong>número</strong> (1, 2…) es extramural E de esas horas desde las 5:00 p. m.
+                <strong>V</strong> son vacaciones y no se cargan. HC sin número lleva sus horas mínimas.</li>
+            <li>Turnos que se reconocen:
+                {% for tipo in tipos %}<span class="chip" style="background: {{ tipo.color }}; color: {{ tipo.color_texto }}" title="{{ tipo.nombre }} · {{ tipo.horario }}">{{ tipo.abreviatura }}</span> {% endfor %}
+            </li>
+        </ul>
+    </details>
+</form>
+
+{% if hojas %}
+    <form method="post" action="{% url 'turnos:cargar_excel' %}">
+        {% csrf_token %}
+        <h2>Vista previa de «{{ archivo.name }}»</h2>
+        <p class="ayuda">Todavía no se ha cargado nada. Revise cada hoja, marque las que quiere cargar y confirme.</p>
+
+        {% for hoja in hojas %}
+            <section class="hoja-excel{% if not hoja.total %} hoja-sin-turnos{% endif %}">
+                <header class="hoja-excel-encabezado">
+                    <label class="hoja-excel-titulo">
+                        <input type="checkbox" name="hoja_{{ forloop.counter0 }}"{% if hoja.total %} checked{% else %} disabled{% endif %}>
+                        Hoja «{{ hoja.hoja }}»
+                    </label>
+                    {% if hoja.total %}
+                        <span>Mes del cuadro:</span>
+                        <select name="mes_{{ forloop.counter0 }}" aria-label="Mes">
+                            <option value="">Elija…</option>
+                            {% for numero, nombre in meses %}<option value="{{ numero }}"{% if numero == hoja.mes %} selected{% endif %}>{{ nombre }}</option>{% endfor %}
+                        </select>
+                        <select name="anio_{{ forloop.counter0 }}" aria-label="Año">
+                            <option value="">Elija…</option>
+                            {% for a in anios %}<option value="{{ a }}"{% if a == hoja.anio %} selected{% endif %}>{{ a }}</option>{% endfor %}
+                        </select>
+                        <strong>{{ hoja.total }} turno{{ hoja.total|pluralize }}</strong>
+                    {% else %}
+                        <span class="etiqueta etiqueta-inactivo">No se puede cargar</span>
+                    {% endif %}
+                </header>
+
+                {% if hoja.personas %}
+                    <p>{% for p in hoja.personas %}<span class="persona-excel">{{ p.nombre }} <small>({{ p.turnos }})</small></span>{% endfor %}</p>
+                {% endif %}
+                {% if hoja.no_encontrados %}
+                    <div class="mensaje mensaje-error">
+                        <strong>No se encontraron en Funcionarios</strong> (sus turnos no se cargan): {{ hoja.no_encontrados|join:", " }}.
+                        Créelos o corrija el nombre en el Excel y vuelva a subirlo.
+                    </div>
+                {% endif %}
+                {% if hoja.codigos_desconocidos %}
+                    <div class="mensaje mensaje-error">
+                        <strong>Códigos que no son un tipo de turno</strong> (no se cargan):
+                        {% for codigo, veces in hoja.codigos_desconocidos.items %}«{{ codigo }}» ×{{ veces }}{% if not forloop.last %}, {% endif %}{% endfor %}.
+                        Si alguno es un turno, créelo en <a href="{% url 'turnos:tipos' %}">Tipos de turno</a> y vuelva a subir el archivo.
+                    </div>
+                {% endif %}
+                {% for aviso in hoja.avisos %}<div class="mensaje mensaje-error">{{ aviso }}</div>{% endfor %}
+                {% if hoja.vacaciones %}<p class="ayuda">{{ hoja.vacaciones }} día{{ hoja.vacaciones|pluralize }} de vacaciones (V), que no se cargan.</p>{% endif %}
+            </section>
+        {% endfor %}
+
+        <label class="vaciar-excel">
+            <input type="checkbox" name="vaciar" checked>
+            Quitar los turnos que ya tengan estos funcionarios en los días que el Excel deja vacíos (por ejemplo, vacaciones).
+        </label>
+        <p class="ayuda">Los días que trae el Excel quedan exactamente con los turnos del Excel, reemplazando los que ya hubiera.</p>
+        <div class="botones-formulario">
+            <button type="submit" class="boton boton-primario">Cargar al cuadro de turno</button>
+            <a class="boton" href="{% url 'turnos:subir_excel' %}">Cancelar</a>
+        </div>
+    </form>
+{% endif %}
+{% endblock %}

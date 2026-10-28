@@ -1,4 +1,5 @@
 import datetime
+import io
 from decimal import Decimal
 
 from django.test import TestCase, override_settings
@@ -424,3 +425,77 @@ class HoraDeInicioAlAsignarTests(DatosCuadroMixin, TestCase):
         tipo = TipoTurno(nombre='Fijo', abreviatura='F', hora_inicio=datetime.time(8), hora_fin=datetime.time(12), pide_hora_inicio=True)
         tipo.full_clean()
         self.assertFalse(tipo.pide_hora_inicio)
+
+
+class SubirExcelTests(TestCase):
+    """Carga del cuadro de turno desde un Excel con el formato de la institución."""
+
+    def setUp(self):
+        self.admin = crear_funcionario('1000', es_administrador=True, nombres='Admin', apellidos='Zuluaga')
+        self.ana = crear_funcionario('2000', nombres='Ana María', apellidos='Pérez Gómez')
+        self.m1 = TipoTurno.objects.create(nombre='Mañana', abreviatura='M1', hora_inicio=datetime.time(5), hora_fin=datetime.time(11))
+        self.hc = TipoTurno.objects.create(nombre='Disponibilidad', abreviatura='HC', horas_variables=True,
+                                           horas_minimas=Decimal('2'), horas_maximas=Decimal('4'))
+        self.e = TipoTurno.objects.create(nombre='Extramural', abreviatura='E', horas_variables=True, pide_hora_inicio=True,
+                                          horas_minimas=Decimal('1'), horas_maximas=Decimal('12'))
+        self.client.force_login(self.admin.usuario)
+
+    def _excel(self):
+        from openpyxl import Workbook
+        libro = Workbook()
+        hoja = libro.active
+        hoja.title = 'JEFES'
+        hoja['B2'], hoja['C2'] = 'PERIODO:', 'OCTUBRE 2026'
+        hoja['A4'] = 'FECHAS / DIAS'
+        for dia in range(1, 32):
+            hoja.cell(row=4, column=2 + dia, value=dia)
+        hoja['B6'] = '  ANA MARIA PEREZ GOMEZ'  # sin tildes y con espacios de sobra
+        hoja.merge_cells('B6:B7')
+        hoja['C6'], hoja['C7'] = 'M1', 1         # día 1: M1 y extramural de 1 h
+        hoja['D6'] = 'FM1'                       # día 2: M1 en festivo
+        hoja['E6'] = 'HC'                        # día 3: disponibilidad (horas mínimas)
+        hoja['F6'] = 'V'                         # día 4: vacaciones
+        hoja['G6'] = 'ZZ'                        # día 5: código desconocido
+        hoja['B8'] = 'PEDRO NO EXISTE'
+        hoja['C8'] = 'M1'
+        hoja['B10'] = '5:00 AM 7:00 AM'          # convención, no es un funcionario
+        hoja['C10'] = 'M1'
+        archivo = io.BytesIO()
+        libro.save(archivo)
+        archivo.seek(0)
+        archivo.name = 'cuadro.xlsx'
+        return archivo
+
+    def test_vista_previa_y_carga(self):
+        # Turno viejo en un día que el Excel deja vacío (vacaciones): se quita al cargar.
+        AsignacionTurno.objects.create(funcionario=self.ana, fecha=datetime.date(2026, 10, 4), tipo_turno=self.m1)
+
+        vista = self.client.post(reverse('turnos:subir_excel'), {'archivo': self._excel()})
+        hoja = vista.context['hojas'][0]
+        self.assertEqual((hoja['anio'], hoja['mes'], hoja['total']), (2026, 10, 4))
+        self.assertEqual(hoja['no_encontrados'], ['PEDRO NO EXISTE'])
+        self.assertEqual(hoja['codigos_desconocidos'], {'ZZ': 1})
+        self.assertEqual(hoja['vacaciones'], 1)
+        self.assertEqual(AsignacionTurno.objects.count(), 1)  # la vista previa no carga nada
+
+        respuesta = self.client.post(reverse('turnos:cargar_excel'), {'hoja_0': 'on', 'mes_0': '10', 'anio_0': '2026', 'vaciar': 'on'})
+        self.assertRedirects(respuesta, reverse('turnos:cuadro') + '?anio=2026&mes=10')
+        turnos = {(a.fecha.day, a.tipo_turno.abreviatura): a for a in AsignacionTurno.objects.filter(funcionario=self.ana)}
+        self.assertEqual(set(turnos), {(1, 'M1'), (1, 'E'), (2, 'M1'), (3, 'HC')})
+        self.assertEqual((turnos[(1, 'E')].horas, turnos[(1, 'E')].hora_inicio), (Decimal('1'), datetime.time(17)))
+        self.assertEqual(turnos[(3, 'HC')].horas, Decimal('2'))
+
+        # Volver a cargar el mismo archivo no duplica nada.
+        self.client.post(reverse('turnos:subir_excel'), {'archivo': self._excel()})
+        self.client.post(reverse('turnos:cargar_excel'), {'hoja_0': 'on', 'mes_0': '10', 'anio_0': '2026', 'vaciar': 'on'})
+        self.assertEqual(AsignacionTurno.objects.filter(funcionario=self.ana).count(), 4)
+
+    def test_rechaza_archivos_que_no_son_excel(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        respuesta = self.client.post(reverse('turnos:subir_excel'), {'archivo': SimpleUploadedFile('cuadro.xlsx', b'no es excel')})
+        self.assertContains(respuesta, 'No se pudo abrir el archivo')
+        self.assertIsNone(respuesta.context['hojas'])
+
+    def test_solo_administradores(self):
+        self.client.force_login(self.ana.usuario)
+        self.assertEqual(self.client.get(reverse('turnos:subir_excel')).status_code, 403)
