@@ -36,6 +36,15 @@
             {% include 'includes/campo.html' with campo=form.hora_inicio_2 %}
             {% include 'includes/campo.html' with campo=form.hora_fin_2 %}
         </div>
+        <p class="subtitulo-seccion">Tercer y cuarto bloque (opcionales, para turnos especiales como A1: 05:00–07:00, 10:30–13:00, 16:00–18:00 y 22:00–00:00)</p>
+        <div class="rejilla">
+            {% include 'includes/campo.html' with campo=form.hora_inicio_3 %}
+            {% include 'includes/campo.html' with campo=form.hora_fin_3 %}
+        </div>
+        <div class="rejilla">
+            {% include 'includes/campo.html' with campo=form.hora_inicio_4 %}
+            {% include 'includes/campo.html' with campo=form.hora_fin_4 %}
+        </div>
     </fieldset>
 
     <fieldset class="seccion-formulario" id="seccion-horas-variables">

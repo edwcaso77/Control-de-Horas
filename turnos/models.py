@@ -12,6 +12,8 @@ from funcionarios.models import Funcionario
 # Máximo de turnos distintos que un funcionario puede tener el mismo día (por ejemplo C1 + HC).
 TURNOS_POR_DIA = 2
 
+BLOQUES = {2: 'segundo', 3: 'tercer', 4: 'cuarto'}
+
 
 def formato_horas(horas):
     """Horas sin ceros de sobra: 3 → «3», 3.0 → «3», 2.5 → «2.5», 10 → «10»."""
@@ -32,7 +34,7 @@ class TipoTurno(models.Model):
 
     Hay tres clases:
     - Horario fijo: hora de inicio y de fin (C1 05:00–14:00).
-    - Horario partido: además, un segundo bloque (A 08:00–12:00 y 14:00–18:00).
+    - Horario partido: además, hasta tres bloques más (A 08:00–12:00 y 14:00–18:00; A1 con cuatro bloques).
     - Horas variables: sin horario; las horas se escriben al asignarlo, entre un mínimo y un máximo (HC, extramural).
       Si pide hora de inicio, al asignarlo también se escribe a qué hora empieza (extramural).
     Un turno sin horario y sin horas variables sirve para marcas como Descanso.
@@ -44,6 +46,10 @@ class TipoTurno(models.Model):
     hora_fin = models.TimeField('hora de fin', null=True, blank=True)
     hora_inicio_2 = models.TimeField('inicio del segundo bloque', null=True, blank=True)
     hora_fin_2 = models.TimeField('fin del segundo bloque', null=True, blank=True)
+    hora_inicio_3 = models.TimeField('inicio del tercer bloque', null=True, blank=True)
+    hora_fin_3 = models.TimeField('fin del tercer bloque', null=True, blank=True)
+    hora_inicio_4 = models.TimeField('inicio del cuarto bloque', null=True, blank=True)
+    hora_fin_4 = models.TimeField('fin del cuarto bloque', null=True, blank=True)
     horas_variables = models.BooleanField(
         'horas variables', default=False,
         help_text='No tiene horario fijo: las horas se escriben al asignar el turno.',
@@ -77,7 +83,7 @@ class TipoTurno(models.Model):
     def clean(self):
         errores = {}
         if self.horas_variables:
-            if any(h is not None for h in (self.hora_inicio, self.hora_fin, self.hora_inicio_2, self.hora_fin_2)):
+            if any(h is not None for par in self._pares_de_horas() for h in par):
                 errores['horas_variables'] = 'Un turno de horas variables no lleva horario: deje las horas de inicio y fin vacías.'
             if self.horas_minimas is None or self.horas_maximas is None:
                 errores['horas_minimas'] = 'Indique las horas mínimas y máximas que se pueden asignar.'
@@ -86,40 +92,52 @@ class TipoTurno(models.Model):
         else:
             if (self.hora_inicio is None) != (self.hora_fin is None):
                 errores['hora_fin'] = 'Indique la hora de inicio y la de fin, o deje ambas vacías (por ejemplo, para Descanso).'
-            if (self.hora_inicio_2 is None) != (self.hora_fin_2 is None):
-                errores['hora_fin_2'] = 'Indique el inicio y el fin del segundo bloque, o deje ambos vacíos.'
-            elif self.hora_inicio_2 is not None and self.hora_inicio is None:
-                errores['hora_inicio_2'] = 'Para usar un segundo bloque, primero indique el horario del primero.'
+            pares = self._pares_de_horas()
+            for numero, (inicio, fin) in enumerate(pares[1:], start=2):
+                nombre = BLOQUES[numero]
+                if (inicio is None) != (fin is None):
+                    errores[f'hora_fin_{numero}'] = f'Indique el inicio y el fin del {nombre} bloque, o deje ambos vacíos.'
+                elif inicio is not None and pares[numero - 2][0] is None:
+                    errores[f'hora_inicio_{numero}'] = f'Para usar el {nombre} bloque, primero indique el horario del anterior.'
             # Los rangos de horas y la hora de inicio al asignar solo aplican a turnos de horas variables.
             self.horas_minimas = self.horas_maximas = None
             self.pide_hora_inicio = False
         if errores:
             raise ValidationError(errores)
 
+    def _pares_de_horas(self):
+        return [
+            (self.hora_inicio, self.hora_fin), (self.hora_inicio_2, self.hora_fin_2),
+            (self.hora_inicio_3, self.hora_fin_3), (self.hora_inicio_4, self.hora_fin_4),
+        ]
+
+    @property
+    def bloques(self):
+        """(inicio, fin) de cada bloque del horario, en orden. Vacío si no tiene horario o es de horas variables."""
+        if self.horas_variables:
+            return []
+        return [(inicio, fin) for inicio, fin in self._pares_de_horas() if inicio is not None and fin is not None]
+
     @property
     def tiene_segundo_bloque(self):
-        return self.hora_inicio_2 is not None
+        return len(self.bloques) > 1
 
     @property
     def horario(self):
         if self.horas_variables:
             return f'Horas variables ({formato_horas(self.horas_minimas)}–{formato_horas(self.horas_maximas)} h)'
-        if self.hora_inicio is None:
+        if not self.bloques:
             return 'Sin horario'
-        texto = f'{self.hora_inicio:%H:%M} – {self.hora_fin:%H:%M}'
-        if self.tiene_segundo_bloque:
-            texto += f' / {self.hora_inicio_2:%H:%M} – {self.hora_fin_2:%H:%M}'
-        return texto
+        return ' / '.join(f'{inicio:%H:%M} – {fin:%H:%M}' for inicio, fin in self.bloques)
 
     @property
     def duracion_horas(self):
-        """Horas del turno según su horario (suma ambos bloques). Los de horas variables dependen de cada asignación."""
-        if self.horas_variables or self.hora_inicio is None:
-            return 0
-        horas = _horas_entre(self.hora_inicio, self.hora_fin)
-        if self.tiene_segundo_bloque:
-            horas += _horas_entre(self.hora_inicio_2, self.hora_fin_2)
-        return horas
+        """Horas del turno según su horario (suma todos los bloques). Los de horas variables dependen de cada asignación."""
+        return sum(_horas_entre(inicio, fin) for inicio, fin in self.bloques)
+
+    @property
+    def hora_fin_ultimo_bloque(self):
+        return self.bloques[-1][1] if self.bloques else None
 
     @property
     def color_texto(self):

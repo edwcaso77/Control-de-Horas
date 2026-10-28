@@ -10,6 +10,7 @@ class TipoTurnoForm(forms.ModelForm):
         fields = [
             'nombre', 'abreviatura', 'color', 'horas_variables',
             'hora_inicio', 'hora_fin', 'hora_inicio_2', 'hora_fin_2',
+            'hora_inicio_3', 'hora_fin_3', 'hora_inicio_4', 'hora_fin_4',
             'horas_minimas', 'horas_maximas', 'pide_hora_inicio',
         ]
         widgets = {
@@ -17,6 +18,10 @@ class TipoTurnoForm(forms.ModelForm):
             'hora_fin': forms.TimeInput(attrs={'type': 'time'}, format='%H:%M'),
             'hora_inicio_2': forms.TimeInput(attrs={'type': 'time'}, format='%H:%M'),
             'hora_fin_2': forms.TimeInput(attrs={'type': 'time'}, format='%H:%M'),
+            'hora_inicio_3': forms.TimeInput(attrs={'type': 'time'}, format='%H:%M'),
+            'hora_fin_3': forms.TimeInput(attrs={'type': 'time'}, format='%H:%M'),
+            'hora_inicio_4': forms.TimeInput(attrs={'type': 'time'}, format='%H:%M'),
+            'hora_fin_4': forms.TimeInput(attrs={'type': 'time'}, format='%H:%M'),
             'horas_minimas': forms.NumberInput(attrs={'step': '0.5', 'min': '0.5', 'max': '24'}),
             'horas_maximas': forms.NumberInput(attrs={'step': '0.5', 'min': '0.5', 'max': '24'}),
             'color': forms.TextInput(attrs={'type': 'color'}),

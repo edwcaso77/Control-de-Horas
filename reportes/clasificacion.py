@@ -67,9 +67,4 @@ def intervalos_de_turno(asignacion):
             return []
         desde = datetime.datetime.combine(asignacion.fecha, asignacion.hora_inicio)
         return [(desde, desde + datetime.timedelta(hours=float(asignacion.horas)))]
-    if tipo.hora_inicio is None:
-        return []
-    bloques = [intervalo(asignacion.fecha, tipo.hora_inicio, tipo.hora_fin)]
-    if tipo.hora_inicio_2 is not None:
-        bloques.append(intervalo(asignacion.fecha, tipo.hora_inicio_2, tipo.hora_fin_2))
-    return bloques
+    return [intervalo(asignacion.fecha, inicio, fin) for inicio, fin in tipo.bloques]

@@ -274,6 +274,20 @@ class TurnosEspecialesTests(DatosCuadroMixin, TestCase):
         self.assertEqual(self.partido.duracion_horas, 8)
         self.assertEqual(self.partido.horario, '08:00 – 12:00 / 14:00 – 18:00')
 
+    def test_turno_de_cuatro_bloques(self):
+        base = {'nombre': 'A1 (especial)', 'abreviatura': 'A1', 'color': '#000000',
+                'hora_inicio': '05:00', 'hora_fin': '07:00', 'hora_inicio_2': '10:30', 'hora_fin_2': '13:00',
+                'hora_inicio_3': '16:00', 'hora_fin_3': '18:00'}
+        self.assertFalse(TipoTurnoForm({**base, 'hora_inicio_3': '', 'hora_fin_3': '',
+                                        'hora_inicio_4': '22:00', 'hora_fin_4': '00:00'}).is_valid())
+        self.assertFalse(TipoTurnoForm({**base, 'hora_fin_3': ''}).is_valid())
+        form = TipoTurnoForm({**base, 'hora_inicio_4': '22:00', 'hora_fin_4': '00:00'})
+        self.assertTrue(form.is_valid(), form.errors)
+        tipo = form.save()
+        self.assertEqual(tipo.duracion_horas, 8.5)
+        self.assertEqual(tipo.horario, '05:00 – 07:00 / 10:30 – 13:00 / 16:00 – 18:00 / 22:00 – 00:00')
+        self.assertEqual(tipo.hora_fin_ultimo_bloque, datetime.time(0))
+
     def test_turno_de_horas_variables(self):
         self.assertEqual(self.hc.horario, 'Horas variables (2–4 h)')
         self.assertEqual(self.hc.duracion_horas, 0)

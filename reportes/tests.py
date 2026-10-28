@@ -91,6 +91,17 @@ class ConteoSemanaTests(TestCase):
             'total_horas': 27,
         })
 
+    def test_turno_de_cuatro_bloques(self):
+        a1 = TipoTurno.objects.create(
+            nombre='A1 (especial)', abreviatura='A1', hora_inicio=hora(5), hora_fin=hora(7),
+            hora_inicio_2=hora(10, 30), hora_fin_2=hora(13), hora_inicio_3=hora(16), hora_fin_3=hora(18),
+            hora_inicio_4=hora(22), hora_fin_4=hora(0),
+        )
+        AsignacionTurno.objects.create(funcionario=self.ana, fecha=MARTES, tipo_turno=a1)
+        fila = conteo_semana(LUNES)[0][0]
+        self.assertEqual(fila['horas']['total_horas'], 8.5)
+        self.assertEqual(fila['horas']['recargo_nocturno'], 3)  # 05:00 a 06:00 y 22:00 a 00:00
+
     def test_filtra_por_seccion(self):
         AsignacionTurno.objects.create(funcionario=self.ana, fecha=MARTES, tipo_turno=self.noche)
         otra = Area.objects.create(nombre='Hospitalización')

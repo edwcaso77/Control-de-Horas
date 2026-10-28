@@ -33,7 +33,7 @@ def solicitar(request, turno_id):
         return _volver_al_dia(turno.fecha)
 
     # Se propone que la hora extra empiece cuando termina el turno.
-    fin_turno = turno.hora_fin or turno.tipo_turno.hora_fin_2 or turno.tipo_turno.hora_fin
+    fin_turno = turno.hora_fin or turno.tipo_turno.hora_fin_ultimo_bloque
     form = SolicitudForm(request.POST or None, initial={'hora_inicio': fin_turno}, funcionario=turno.funcionario)
     if form.is_valid():
         solicitud = form.save(commit=False)
