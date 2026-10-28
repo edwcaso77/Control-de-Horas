@@ -29,6 +29,25 @@
 }
 
 .leyenda-texto { margin-right: 8px; }
+
+/* Lista de tipos de turno: cerrada hasta que se pide verla. */
+.leyenda-turnos { display: contents; }
+.leyenda-turnos summary { list-style: none; cursor: pointer; }
+.leyenda-turnos summary::-webkit-details-marker { display: none; }
+.leyenda-turnos summary::before { content: '▸ '; }
+.leyenda-turnos[open] summary::before { content: '▾ '; }
+.leyenda-lista {
+    order: 10;
+    flex-basis: 100%;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 6px 16px;
+    padding: 10px 12px;
+    border: 1px solid #e1e6ea;
+    border-radius: 8px;
+    background: #fff;
+}
+.leyenda-item { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .leyenda-texto small { color: var(--texto-suave); }
 .leyenda-ayuda { margin-left: auto; color: var(--texto-suave); font-size: .9rem; }
 

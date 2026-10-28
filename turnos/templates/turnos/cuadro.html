@@ -3,7 +3,7 @@
 
 {% block titulo %}Cuadro de turno · {{ nombre_mes }} {{ anio }}{% endblock %}
 
-{% block estilos_extra %}<link rel="stylesheet" href="{% static 'turnos/turnos.css' %}">{% endblock %}
+{% block estilos_extra %}<link rel="stylesheet" href="{% static 'turnos/turnos.css' %}?v=4">{% endblock %}
 
 {% block titulo_mes %}{{ nombre_mes }} <span class="subtitulo-cuadro">Cuadro de turno</span>{% endblock %}
 
@@ -18,14 +18,23 @@
 
 {% block antes_cuadricula %}
     <div class="leyenda">
-        {% for tipo in tipos_activos %}
-            <span class="chip" style="background: {{ tipo.color }}; color: {{ tipo.color_texto }}">{{ tipo.abreviatura }}</span>
-            <span class="leyenda-texto">{{ tipo.nombre }} <small>{{ tipo.horario }}</small></span>
-        {% empty %}
+        {% if tipos_activos %}
+            <details class="leyenda-turnos">
+                <summary class="boton boton-pequeno">Ver tipos de turno ({{ tipos_activos|length }})</summary>
+                <div class="leyenda-lista">
+                    {% for tipo in tipos_activos %}
+                        <div class="leyenda-item">
+                            <span class="chip" style="background: {{ tipo.color }}; color: {{ tipo.color_texto }}">{{ tipo.abreviatura }}</span>
+                            <span class="leyenda-texto">{{ tipo.nombre }} <small>{{ tipo.horario }}</small></span>
+                        </div>
+                    {% endfor %}
+                </div>
+            </details>
+        {% else %}
             <span class="mensaje mensaje-error">
                 Primero cree los turnos en <a href="{% url 'turnos:tipos' %}">Tipos de turno</a>.
             </span>
-        {% endfor %}
+        {% endif %}
         <button type="button" class="boton boton-pequeno" id="seleccionar-sin-domingos">Seleccionar el mes sin domingos</button>
         <a class="boton boton-pequeno boton-verde" href="{% url 'turnos:subir_excel' %}">Subir cuadro desde Excel</a>
         <span class="leyenda-ayuda">Cada día muestra quién tiene turno y cuál · clic en el día para asignar sus turnos · marque la casilla para elegir varios días · clic en «Lunes», «Martes»… para elegir todos esos días del mes.</span>
