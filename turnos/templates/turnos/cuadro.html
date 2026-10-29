@@ -14,6 +14,12 @@
             <option value="{{ a.pk }}"{% if area and a.pk == area.pk %} selected{% endif %}>{{ a }}</option>
         {% endfor %}
     </select>
+    <select name="cargo" aria-label="Cargo" onchange="this.form.submit()">
+        <option value="">Todos los cargos</option>
+        {% for c in cargos %}
+            <option value="{{ c.pk }}"{% if cargo and c.pk == cargo.pk %} selected{% endif %}>{{ c }}</option>
+        {% endfor %}
+    </select>
 {% endblock %}
 
 {% block antes_cuadricula %}
@@ -48,6 +54,7 @@
             <input type="hidden" name="anio" value="{{ anio }}">
             <input type="hidden" name="mes" value="{{ mes }}">
             {% if area %}<input type="hidden" name="area" value="{{ area.pk }}">{% endif %}
+            {% if cargo %}<input type="hidden" name="cargo" value="{{ cargo.pk }}">{% endif %}
             <span class="herramientas-titulo">Solo en local</span>
             <span>{{ total_turnos }} turno{{ total_turnos|pluralize }} asignado{{ total_turnos|pluralize }} en total</span>
             <button type="submit" class="boton boton-pequeno boton-borrar"{% if not total_turnos %} disabled{% endif %}>Eliminar toda la agenda</button>
@@ -60,7 +67,7 @@
         <input type="checkbox" class="casilla-dia" value="{{ dia.fecha|date:'Y-m-d' }}"{% if dia.otro_mes %} data-otro-mes{% endif %}
                aria-label="Seleccionar el {{ dia.fecha|date:'j \d\e F' }}">
     </label>
-    <a class="dia-enlace" href="{% url 'turnos:dia' dia.fecha.year dia.fecha.month dia.fecha.day %}{% if area %}?area={{ area.pk }}{% endif %}"
+    <a class="dia-enlace" href="{% url 'turnos:dia' dia.fecha.year dia.fecha.month dia.fecha.day %}{% if filtros %}?{{ filtros }}{% endif %}"
        aria-label="Asignar turnos del {{ dia.fecha|date:'j \d\e F' }}"></a>
     <div class="personas-dia">
         {% for a in dia.turnos %}
@@ -85,7 +92,7 @@
     const barra = document.getElementById('barra-seleccion');
     const enlace = document.getElementById('asignar-seleccion');
     const urlBase = "{% url 'turnos:varios' %}";
-    const area = "{% if area %}{{ area.pk }}{% endif %}";
+    const filtros = new URLSearchParams("{{ filtros|escapejs }}");
 
     function actualizar() {
         const elegidas = casillas.filter(c => c.checked);
@@ -94,7 +101,7 @@
         document.getElementById('cantidad-seleccion').textContent =
             elegidas.length + (elegidas.length === 1 ? ' día seleccionado' : ' días seleccionados');
         const parametros = new URLSearchParams({fechas: elegidas.map(c => c.value).join(',')});
-        if (area) parametros.set('area', area);
+        filtros.forEach((valor, clave) => parametros.set(clave, valor));
         enlace.href = urlBase + '?' + parametros.toString();
     }
 

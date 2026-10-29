@@ -44,27 +44,38 @@ def _funcionarios_activos(area, cargo=None):
     return funcionarios
 
 
+def _filtros(area, cargo):
+    """Área y cargo elegidos como texto de URL («area=1&cargo=2»), para no perderlos al cambiar de pantalla."""
+    return urlencode({clave: valor.pk for clave, valor in (('area', area), ('cargo', cargo)) if valor})
+
+
 @administrador_requerido
 def cuadro(request):
     """Calendario del mes en modo edición: cada día muestra quién tiene turno y cuál."""
     contexto = contexto_mes(request)
     area = _area_elegida(request.GET)
+    cargo = _cargo_elegido(request.GET)
 
     dias = [dia for semana in contexto['semanas'] for dia in semana]
     asignaciones = (
         AsignacionTurno.objects
         .filter(fecha__range=(dias[0]['fecha'], dias[-1]['fecha']), funcionario__usuario__is_active=True)
         .filter(**({'funcionario__area': area} if area else {}))
+        .filter(**({'funcionario__cargo': cargo} if cargo else {}))
         .select_related('funcionario', 'tipo_turno')
     )
     por_dia = turnos_por_dia(asignaciones)
     for dia in dias:
         dia['turnos'] = por_dia[dia['fecha']]
 
+    filtros = _filtros(area, cargo)
     contexto.update({
         'areas': Area.objects.filter(activo=True),
         'area': area,
-        'parametros_extra': f'&area={area.pk}' if area else '',
+        'cargos': Cargo.objects.filter(activo=True),
+        'cargo': cargo,
+        'filtros': filtros,
+        'parametros_extra': f'&{filtros}' if filtros else '',
         'tipos_activos': TipoTurno.objects.filter(activo=True),
         # Herramientas de prueba: solo en el computador de desarrollo, nunca en el sitio publicado.
         'modo_local': settings.DEBUG,
@@ -81,7 +92,7 @@ def borrar_agenda(request):
         raise Http404
     borrados, _ = AsignacionTurno.objects.all().delete()
     messages.success(request, f'Agenda eliminada: {borrados} turno{"s" if borrados != 1 else ""} borrado{"s" if borrados != 1 else ""}.')
-    parametros = {k: v for k in ('anio', 'mes', 'area') if (v := request.POST.get(k, '')).isdigit()}
+    parametros = {k: v for k in ('anio', 'mes', 'area', 'cargo') if (v := request.POST.get(k, '')).isdigit()}
     return redirect(f"{reverse('turnos:cuadro')}?{urlencode(parametros)}" if parametros else reverse('turnos:cuadro'))
 
 
@@ -174,11 +185,9 @@ def _avisar_errores(request, errores):
         messages.warning(request, error)
 
 
-def _volver_al_cuadro(fecha, area):
-    parametros = {'anio': fecha.year, 'mes': fecha.month}
-    if area:
-        parametros['area'] = area.pk
-    return redirect(f"{reverse('turnos:cuadro')}?{urlencode(parametros)}")
+def _volver_al_cuadro(fecha, area, cargo=None):
+    filtros = _filtros(area, cargo)
+    return redirect(f"{reverse('turnos:cuadro')}?anio={fecha.year}&mes={fecha.month}{'&' + filtros if filtros else ''}")
 
 
 def _fechas_elegidas(texto):
@@ -199,8 +208,10 @@ def dia(request, anio, mes, dia):
         fecha = datetime.date(anio, mes, dia)
     except ValueError:
         raise Http404
-    area = _area_elegida(request.POST if request.method == 'POST' else request.GET)
-    funcionarios = list(_funcionarios_activos(area))
+    datos = request.POST if request.method == 'POST' else request.GET
+    area = _area_elegida(datos)
+    cargo = _cargo_elegido(datos)
+    funcionarios = list(_funcionarios_activos(area, cargo))
 
     lunes = fecha - datetime.timedelta(days=fecha.weekday())
     semana = [lunes + datetime.timedelta(days=i) for i in range(7)]
@@ -224,7 +235,7 @@ def dia(request, anio, mes, dia):
             messages.success(request, f'Turnos del {fecha:%d/%m/%Y} guardados.')
         else:
             messages.success(request, f'Turnos de la semana del {semana[0]:%d/%m} al {semana[-1]:%d/%m/%Y} guardados.')
-        return _volver_al_cuadro(fecha, area)
+        return _volver_al_cuadro(fecha, area, cargo)
 
     filas = [
         {
@@ -245,6 +256,9 @@ def dia(request, anio, mes, dia):
         'tipos': tipos,
         'areas': Area.objects.filter(activo=True),
         'area': area,
+        'cargos': Cargo.objects.filter(activo=True),
+        'cargo': cargo,
+        'filtros': _filtros(area, cargo),
     })
 
 
@@ -284,7 +298,7 @@ def varios(request):
                         cambios += _aplicar_turnos(funcionario, [fecha], elegidos, request.user)
         _avisar_errores(request, errores)
         messages.success(request, f'Turnos guardados ({cambios} cambio{"s" if cambios != 1 else ""}).')
-        return _volver_al_cuadro(fechas[0], area)
+        return _volver_al_cuadro(fechas[0], area, cargo)
 
     filas = [
         {
@@ -309,6 +323,7 @@ def varios(request):
         'area': area,
         'cargo': cargo,
         'cargos': Cargo.objects.filter(activo=True),
+        'filtros': _filtros(area, cargo),
     })
 
 

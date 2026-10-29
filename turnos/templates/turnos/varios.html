@@ -8,7 +8,7 @@
 {% block contenido %}
 <header class="encabezado-pagina">
     <h1>Asignar turnos a {{ fechas|length }} día{{ fechas|length|pluralize }}</h1>
-    <a class="boton" href="{% url 'turnos:cuadro' %}?anio={{ fechas.0.year }}&mes={{ fechas.0.month }}{% if area %}&area={{ area.pk }}{% endif %}">Volver al mes</a>
+    <a class="boton" href="{% url 'turnos:cuadro' %}?anio={{ fechas.0.year }}&mes={{ fechas.0.month }}{% if filtros %}&{{ filtros }}{% endif %}">Volver al mes</a>
 </header>
 
 <div class="fechas-elegidas">
@@ -100,7 +100,7 @@
 
     <div class="botones-formulario">
         <button type="submit" class="boton boton-primario">Guardar</button>
-        <a class="boton" href="{% url 'turnos:cuadro' %}?anio={{ fechas.0.year }}&mes={{ fechas.0.month }}{% if area %}&area={{ area.pk }}{% endif %}">Cancelar</a>
+        <a class="boton" href="{% url 'turnos:cuadro' %}?anio={{ fechas.0.year }}&mes={{ fechas.0.month }}{% if filtros %}&{{ filtros }}{% endif %}">Cancelar</a>
     </div>
 </form>
 

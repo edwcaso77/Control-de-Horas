@@ -98,6 +98,27 @@ class CuadroTurnoTests(DatosCuadroMixin, TestCase):
         self.client.post(self._url_dia(), {'area': self.urgencias.pk, f'turno_{self.ana.pk}_1': '', 'alcance': 'dia'})
         self.assertTrue(AsignacionTurno.objects.filter(funcionario=self.luis).exists())
 
+    def test_filtro_por_cargo(self):
+        medico = Cargo.objects.create(nombre='Médico')
+        sofia = crear_funcionario('4000', nombres='Sofía', cargo=medico.pk)
+        AsignacionTurno.objects.create(funcionario=self.ana, fecha=self.fecha, tipo_turno=self.manana)
+        AsignacionTurno.objects.create(funcionario=sofia, fecha=self.fecha, tipo_turno=self.noche)
+
+        # El cuadro del mes solo muestra los turnos de ese cargo, y lo conserva al cambiar de mes y al abrir un día.
+        respuesta = self.client.get(reverse('turnos:cuadro'), {'anio': 2026, 'mes': 10, 'cargo': medico.pk})
+        dia = next(d for s in respuesta.context['semanas'] for d in s if d['fecha'] == self.fecha)
+        self.assertEqual([a.funcionario for a in dia['turnos']], [sofia])
+        self.assertContains(respuesta, f'?cargo={medico.pk}')
+
+        respuesta = self.client.get(self._url_dia(), {'cargo': medico.pk})
+        self.assertEqual([fila['funcionario'] for fila in respuesta.context['filas']], [sofia])
+
+        # Guardar el día con el filtro no toca a los de otro cargo y vuelve al cuadro filtrado.
+        respuesta = self.client.post(self._url_dia(), {'cargo': medico.pk, f'turno_{sofia.pk}_1': '', 'alcance': 'dia'})
+        self.assertRedirects(respuesta, f"{reverse('turnos:cuadro')}?anio=2026&mes=10&cargo={medico.pk}")
+        self.assertTrue(AsignacionTurno.objects.filter(funcionario=self.ana).exists())
+        self.assertFalse(AsignacionTurno.objects.filter(funcionario=sofia).exists())
+
     def test_turno_inexistente_se_ignora(self):
         self.client.post(self._url_dia(), {f'turno_{self.ana.pk}_1': '99999', 'alcance': 'dia'})
         self.assertFalse(AsignacionTurno.objects.exists())
