@@ -22,6 +22,7 @@ from .forms import TipoTurnoForm
 from .agrupar import turnos_por_dia
 from .importar import ErrorExcel, fechas_de, leer_excel
 from .models import TURNOS_POR_DIA, AsignacionTurno, TipoTurno, formato_horas
+from . import programar as rotacion
 
 
 def _area_elegida(datos):
@@ -428,3 +429,137 @@ def cargar_excel(request):
     del request.session[SESION_EXCEL]
     messages.success(request, 'Cuadro cargado desde Excel. ' + ' · '.join(resumen) + '.')
     return redirect(f"{reverse('turnos:cuadro')}?{urlencode({'anio': primer_mes[0], 'mes': primer_mes[1]})}")
+
+
+LETRAS_DIAS = ['L', 'M', 'M', 'J', 'V', 'S', 'D']
+
+
+def _fecha_iso(texto):
+    try:
+        return datetime.date.fromisoformat((texto or '').strip())
+    except ValueError:
+        return None
+
+
+@administrador_requerido
+def programar(request):
+    """Arma el borrador del cuadro de un mes para un cargo, con la rotación por líneas, y lo guarda en el cuadro."""
+    datos = request.POST if request.method == 'POST' else request.GET
+    hoy = timezone.localdate()
+    proximo = (hoy.replace(day=1) + datetime.timedelta(days=32)).replace(day=1)
+    anio = _entero(datos.get('anio'), proximo.year, ANIO_MIN, ANIO_MAX)
+    mes = _entero(datos.get('mes'), proximo.month, 1, 12)
+    cargo = _cargo_elegido(datos)
+    contexto = {
+        'anio': anio, 'mes': mes, 'nombre_mes': MESES[mes - 1], 'cargo': cargo,
+        'cargos': Cargo.objects.filter(activo=True),
+        'meses': list(enumerate(MESES, start=1)),
+        'anios': range(hoy.year - 1, hoy.year + 3),
+        'papeles': rotacion.PAPELES, 'lineas': list(enumerate(rotacion.NOMBRES_LINEAS)),
+    }
+    if cargo is None:
+        return render(request, 'turnos/programar.html', contexto)
+
+    tipos = {t.abreviatura.upper(): t for t in TipoTurno.objects.filter(abreviatura__in=rotacion.CODIGOS)}
+    faltan = [codigo for codigo in rotacion.CODIGOS if codigo not in tipos]
+    dias = rotacion.dias_del_mes(anio, mes)
+    laborables = [d for d in dias if d.weekday() < 6]
+    grupo = rotacion.grupo_del_mes(cargo, anio, mes)
+    enviado = request.method == 'POST'
+
+    personas, filas_formulario, errores = [], [], []
+    for p in grupo:
+        if not p['esta']:
+            continue
+        pk = p['funcionario'].pk
+        papel, linea = p['papel'], p['linea']
+        vacaciones_desde = vacaciones_hasta = None
+        elegidos = {d: '' for d in laborables}  # lo que el relevo eligió cada día; empieza en «No puede»
+        if enviado:
+            papel = datos.get(f'papel_{pk}', papel)
+            linea = _entero(datos.get(f'linea_{pk}'), None, 0, len(rotacion.LINEAS) - 1)
+            vacaciones_desde = _fecha_iso(datos.get(f'vac_desde_{pk}'))
+            vacaciones_hasta = _fecha_iso(datos.get(f'vac_hasta_{pk}')) or vacaciones_desde
+            elegidos = {d: datos.get(f'disp_{pk}_{d.isoformat()}', '') for d in laborables}
+        disponibles = {d: rotacion.turnos_aceptados(d, valor) for d, valor in elegidos.items()}
+        ausencias = {d for d in dias if not p['desde'] <= d <= p['hasta']}
+        if vacaciones_desde:
+            ausencias |= {d for d in dias if vacaciones_desde <= d <= vacaciones_hasta}
+        filas_formulario.append({
+            **p, 'papel': papel, 'linea': linea, 'vac_desde': vacaciones_desde, 'vac_hasta': vacaciones_hasta,
+            'disponibles': [
+                {'fecha': d, 'valor': elegidos[d], 'opciones': rotacion.opciones_relevo(d)} for d in laborables
+            ],
+            'dias_disponibles': sum(1 for aceptados in disponibles.values() if aceptados),
+        })
+        if papel != rotacion.FUERA:
+            personas.append(rotacion.Persona(
+                funcionario=p['funcionario'], papel=papel, linea=linea, ausencias=ausencias,
+                disponibles=disponibles if papel == rotacion.RELEVO else None,
+            ))
+
+    lineas_titulares = [p.linea for p in personas if p.papel == rotacion.TITULAR]
+    if None in lineas_titulares:
+        errores.append('Elija la línea de la primera semana de cada titular.')
+    elif len(set(lineas_titulares)) != len(lineas_titulares):
+        errores.append('Dos titulares tienen la misma línea: cada línea es de un solo titular.')
+    if faltan:
+        errores.append(f'Faltan estos tipos de turno: {", ".join(faltan)}. Créelos en Tipos de turno.')
+
+    contexto.update({
+        'cambios': {estado: [p for p in grupo if p['estado'] == estado] for estado in (rotacion.SIGUE, rotacion.ENTRA, rotacion.SALE)},
+        'filas_formulario': filas_formulario,
+        'errores': errores if enviado else [e for e in errores if e.startswith('Faltan')],
+        'jornada': rotacion.JORNADA_SEMANAL,
+    })
+    if not enviado or errores:
+        return render(request, 'turnos/programar.html', contexto)
+
+    festivos = set(Festivo.objects.filter(fecha__range=(dias[0], dias[-1])).values_list('fecha', flat=True))
+    borrador = rotacion.generar(personas, anio, mes, tipos, festivos)
+    ids = [p.funcionario.pk for p in personas]
+    existentes = AsignacionTurno.objects.filter(funcionario_id__in=ids, fecha__range=(dias[0], dias[-1]))
+
+    if datos.get('accion') == 'guardar':
+        with transaction.atomic():
+            existentes.delete()
+            AsignacionTurno.objects.bulk_create([
+                AsignacionTurno(funcionario_id=pk, fecha=fecha, tipo_turno=tipos[codigo], asignado_por=request.user)
+                for pk, propios in borrador.turnos.items() for fecha, codigo in propios.items()
+            ])
+        total = sum(len(propios) for propios in borrador.turnos.values())
+        messages.success(request, f'Cuadro de {MESES[mes - 1].lower()} {anio} ({cargo}) guardado: {total} turnos.')
+        return redirect(f"{reverse('turnos:cuadro')}?{urlencode({'anio': anio, 'mes': mes})}")
+
+    orden = {rotacion.TITULAR: 0, rotacion.RELEVO: 1, rotacion.COMODIN: 2}
+    nombres_papeles = dict(rotacion.PAPELES)
+    semanas = rotacion.semanas_del_mes(anio, mes)
+    filas = []
+    for p in sorted(personas, key=lambda p: (orden[p.papel], p.linea if p.linea is not None else 0)):
+        pk = p.funcionario.pk
+        propios = borrador.turnos[pk]
+        horas = rotacion.horas_por_semana(borrador, pk, anio, mes, tipos)
+        filas.append({
+            'funcionario': p.funcionario,
+            'papel': nombres_papeles[p.papel],
+            'linea': rotacion.NOMBRES_LINEAS[p.linea] if p.papel == rotacion.TITULAR else '',
+            'celdas': [
+                {
+                    'tipo': tipos.get(propios.get(d)), 'domingo': d.weekday() == 6, 'festivo': d in festivos,
+                    'descanso': d in borrador.descansos[pk], 'ausente': d in p.ausencias and d.weekday() < 6,
+                }
+                for d in dias
+            ],
+            'horas': [{'horas': formato_horas(h), 'excede': h > rotacion.JORNADA_SEMANAL} for h in horas],
+        })
+    contexto.update({
+        'borrador': True,
+        'columnas': [{'fecha': d, 'letra': LETRAS_DIAS[d.weekday()], 'domingo': d.weekday() == 6, 'festivo': d in festivos} for d in dias],
+        'filas': filas,
+        'vacantes': [{'codigos': borrador.vacantes.get(d, []), 'domingo': d.weekday() == 6} for d in dias],
+        'hay_vacantes': any(borrador.vacantes.values()),
+        'semanas': [f'{s[0].day}–{s[-1].day}' for s in semanas],
+        'avisos': borrador.avisos,
+        'existentes': existentes.count(),
+    })
+    return render(request, 'turnos/programar.html', contexto)

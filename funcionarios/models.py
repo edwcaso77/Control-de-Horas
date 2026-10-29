@@ -52,6 +52,10 @@ class Funcionario(models.Model):
     correo = models.EmailField('correo', blank=True)
     telefono = models.CharField('teléfono', max_length=20, blank=True)
     fecha_ingreso = models.DateField('fecha de ingreso', null=True, blank=True)
+    fecha_retiro = models.DateField(
+        'fecha de retiro', null=True, blank=True,
+        help_text='Último día que trabaja. Desde el día siguiente ya no se programa en el cuadro de turno.',
+    )
     es_administrador = models.BooleanField('es administrador', default=False)
 
     class Meta:

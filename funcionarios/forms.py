@@ -25,10 +25,11 @@ class FuncionarioForm(forms.ModelForm):
         model = Funcionario
         fields = [
             'tipo_documento', 'numero_documento', 'nombres', 'apellidos',
-            'cargo', 'area', 'correo', 'telefono', 'fecha_ingreso', 'es_administrador',
+            'cargo', 'area', 'correo', 'telefono', 'fecha_ingreso', 'fecha_retiro', 'es_administrador',
         ]
         widgets = {
             'fecha_ingreso': forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
+            'fecha_retiro': forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
         }
 
     def __init__(self, *args, usuario_actual=None, **kwargs):
@@ -74,6 +75,9 @@ class FuncionarioForm(forms.ModelForm):
 
     def clean(self):
         datos = super().clean()
+        ingreso, retiro = datos.get('fecha_ingreso'), datos.get('fecha_retiro')
+        if ingreso and retiro and retiro < ingreso:
+            self.add_error('fecha_retiro', 'La fecha de retiro no puede ser anterior a la de ingreso.')
         password1 = datos.get('password1')
         password2 = datos.get('password2')
         if password1 or password2:

@@ -499,3 +499,146 @@ class SubirExcelTests(TestCase):
     def test_solo_administradores(self):
         self.client.force_login(self.ana.usuario)
         self.assertEqual(self.client.get(reverse('turnos:subir_excel')).status_code, 403)
+
+
+class ProgramarMesTests(TestCase):
+    """Cuatro titulares que en la última semana de octubre de 2026 tuvieron las líneas 0 a 3, un relevo y un comodín."""
+
+    def setUp(self):
+        from . import programar as rotacion
+        self.rotacion = rotacion
+        self.admin = crear_funcionario('1000', es_administrador=True)
+        self.client.force_login(self.admin.usuario)
+        self.cargo = Cargo.objects.create(nombre='Enfermero Profesional')
+        horarios = {'C': (5, 14), 'X': (14, 23), 'M': (5, 11), 'T': (11, 17)}
+        self.tipos = {}
+        for codigo in rotacion.CODIGOS[:-1]:
+            inicio, fin = horarios[codigo[0]]
+            self.tipos[codigo] = TipoTurno.objects.create(
+                nombre=codigo, abreviatura=codigo, hora_inicio=datetime.time(inicio), hora_fin=datetime.time(fin),
+            )
+        self.tipos['A'] = TipoTurno.objects.create(
+            nombre='Administrativo', abreviatura='A', hora_inicio=datetime.time(8), hora_fin=datetime.time(12),
+            hora_inicio_2=datetime.time(14), hora_fin_2=datetime.time(18),
+        )
+        nombres = ['Uno', 'Dos', 'Tres', 'Cuatro', 'Relevo', 'Comodin']
+        self.personas = [
+            crear_funcionario(str(2000 + i), nombres=nombre, apellidos=f'P{i}', cargo=self.cargo.pk)
+            for i, nombre in enumerate(nombres)
+        ]
+        semana = [datetime.date(2026, 10, d) for d in range(26, 32)]  # lunes 26 a sábado 31
+        for linea, persona in enumerate(self.personas[:4]):
+            for fecha in semana:
+                self._asignar(persona, fecha, rotacion.puesto(linea, fecha))
+        for fecha, codigo in zip(semana, ['C1', 'T2', 'X1', 'M2']):
+            self._asignar(self.personas[4], fecha, codigo)
+        for fecha in semana[:5]:
+            self._asignar(self.personas[5], fecha, 'A')
+
+    def _asignar(self, persona, fecha, codigo):
+        AsignacionTurno.objects.create(funcionario=persona, fecha=fecha, tipo_turno=self.tipos[codigo])
+
+    def _grupo(self):
+        return {p['funcionario'].pk: p for p in self.rotacion.grupo_del_mes(self.cargo, 2026, 11)}
+
+    def test_grupo_sigue_la_rotacion_del_mes_anterior(self):
+        grupo = self._grupo()
+        for linea, persona in enumerate(self.personas[:4]):
+            # Noviembre empieza en domingo: la primera semana ya es nueva y cada titular pasa a la línea siguiente.
+            self.assertEqual((grupo[persona.pk]['papel'], grupo[persona.pk]['linea']), ('titular', (linea + 1) % 4))
+        self.assertEqual(grupo[self.personas[4].pk]['papel'], 'relevo')
+        self.assertEqual(grupo[self.personas[5].pk]['papel'], 'comodin')
+        self.assertTrue(all(p['estado'] == 'sigue' for p in grupo.values()))
+
+    def test_grupo_marca_quien_entra_y_quien_sale(self):
+        uno = self.personas[0]
+        uno.fecha_retiro = datetime.date(2026, 11, 15)
+        uno.save()
+        nueva = crear_funcionario('3000', nombres='Nueva', cargo=self.cargo.pk, fecha_ingreso='2026-11-10')
+        grupo = self._grupo()
+        self.assertEqual((grupo[uno.pk]['estado'], grupo[uno.pk]['hasta']), ('sale', datetime.date(2026, 11, 15)))
+        self.assertEqual((grupo[nueva.pk]['estado'], grupo[nueva.pk]['desde']), ('entra', datetime.date(2026, 11, 10)))
+
+    def test_inactivo_sin_retiro_ya_no_se_programa(self):
+        uno = self.personas[0]
+        uno.usuario.is_active = False
+        uno.usuario.save()
+        grupo = self._grupo()
+        self.assertEqual((grupo[uno.pk]['estado'], grupo[uno.pk]['papel']), ('sale', 'fuera'))
+
+    def test_borrador_cubre_los_cuatro_puestos_sin_pasar_la_jornada(self):
+        grupo = self._grupo()
+        personas = [self.rotacion.Persona(p['funcionario'], p['papel'], p['linea']) for p in grupo.values()]
+        festivo = datetime.date(2026, 11, 2)
+        borrador = self.rotacion.generar(personas, 2026, 11, self.tipos, {festivo})
+        self.assertEqual((borrador.avisos, dict(borrador.vacantes)), ([], {}))
+        for fecha in self.rotacion.dias_del_mes(2026, 11):
+            del_dia = sorted(c for turnos in borrador.turnos.values() for f, c in turnos.items() if f == fecha and c != 'A')
+            esperado = [] if fecha.weekday() == 6 else sorted(self.rotacion.puesto(l, fecha) for l in range(4))
+            self.assertEqual(del_dia, esperado, fecha)
+        for persona in self.personas[:5]:
+            horas = self.rotacion.horas_por_semana(borrador, persona.pk, 2026, 11, self.tipos)
+            self.assertLessEqual(max(horas), 42)
+        # Cada titular descansa un día en las semanas completas, y el comodín no hace A el festivo.
+        self.assertEqual(len(borrador.descansos[self.personas[0].pk]), 4)
+        self.assertNotIn(festivo, borrador.turnos[self.personas[5].pk])
+
+    def test_vacaciones_las_cubre_el_relevo(self):
+        grupo = self._grupo()
+        semana = {datetime.date(2026, 11, d) for d in range(9, 15)}
+        personas = [
+            self.rotacion.Persona(p['funcionario'], p['papel'], p['linea'], ausencias=semana if pk == self.personas[0].pk else set())
+            for pk, p in grupo.items()
+        ]
+        borrador = self.rotacion.generar(personas, 2026, 11, self.tipos)
+        self.assertFalse(semana & set(borrador.turnos[self.personas[0].pk]))
+        self.assertEqual(dict(borrador.vacantes), {})
+
+    def test_el_relevo_elige_dias_y_turnos(self):
+        grupo = self._grupo()
+        lunes, martes = datetime.date(2026, 11, 9), datetime.date(2026, 11, 10)
+        semana = [lunes + datetime.timedelta(days=i) for i in range(6)]
+        # Esa semana el relevo solo puede el lunes, y pide C1; el martes solo tarde (no le alcanza para descansos).
+        disponibles = {d: set() for d in semana}
+        disponibles[lunes] = self.rotacion.turnos_aceptados(lunes, 'C1')
+        disponibles[martes] = self.rotacion.turnos_aceptados(martes, 'tarde')
+        self.assertEqual(disponibles[martes], {'T1', 'T2'})
+        personas = [
+            self.rotacion.Persona(p['funcionario'], p['papel'], p['linea'],
+                                  disponibles=disponibles if p['papel'] == 'relevo' else None)
+            for p in grupo.values()
+        ]
+        borrador = self.rotacion.generar(personas, 2026, 11, self.tipos)
+        relevo = borrador.turnos[self.personas[4].pk]
+        self.assertEqual(relevo.get(lunes), 'C1')
+        self.assertIn(relevo.get(martes), {'T1', 'T2', None})
+        self.assertFalse({d for d in semana[2:]} & set(relevo))
+        # Descansa el titular que tenía C1 ese lunes.
+        quien = next(p for p in self.personas[:4] if lunes in borrador.descansos[p.pk])
+        linea = (grupo[quien.pk]['linea'] + 1) % 4  # el 9 de noviembre es la segunda semana del mes
+        self.assertEqual(self.rotacion.puesto(linea, lunes), 'C1')
+
+    def test_guardar_el_borrador_reemplaza_los_turnos_del_mes(self):
+        uno = self.personas[0]
+        self._asignar(uno, datetime.date(2026, 11, 20), 'A')
+        datos = {'cargo': self.cargo.pk, 'anio': 2026, 'mes': 11, 'accion': 'guardar'}
+        for pk, p in self._grupo().items():
+            datos[f'papel_{pk}'] = p['papel']
+            datos[f'linea_{pk}'] = '' if p['linea'] is None else p['linea']
+            for d in self.rotacion.dias_del_mes(2026, 11):
+                datos[f'disp_{pk}_{d.isoformat()}'] = 'todos'
+        respuesta = self.client.post(reverse('turnos:programar'), datos)
+        self.assertRedirects(respuesta, f"{reverse('turnos:cuadro')}?anio=2026&mes=11")
+        noviembre = AsignacionTurno.objects.filter(fecha__year=2026, fecha__month=11)
+        self.assertFalse(noviembre.filter(funcionario=uno, tipo_turno__abreviatura='A').exists())
+        primera_semana = noviembre.filter(funcionario=uno, fecha__day__lte=7)
+        self.assertEqual({a.tipo_turno.abreviatura for a in primera_semana}, {'X1', 'T1'})  # su nueva línea
+
+    def test_dos_titulares_con_la_misma_linea_no_se_programa(self):
+        datos = {'cargo': self.cargo.pk, 'anio': 2026, 'mes': 11, 'accion': 'guardar'}
+        for pk, p in self._grupo().items():
+            datos[f'papel_{pk}'] = p['papel']
+            datos[f'linea_{pk}'] = 0 if p['papel'] == 'titular' else ''
+        respuesta = self.client.post(reverse('turnos:programar'), datos)
+        self.assertContains(respuesta, 'Dos titulares tienen la misma línea')
+        self.assertFalse(AsignacionTurno.objects.filter(fecha__month=11).exists())

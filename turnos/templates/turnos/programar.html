@@ -1,0 +1,178 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block titulo %}Programar mes{% endblock %}
+
+{% block estilos %}<link rel="stylesheet" href="{% static 'turnos/turnos.css' %}?v=6">{% endblock %}
+
+{% block contenido %}
+<header class="encabezado-pagina">
+    <h1>Programar mes{% if cargo %} · {{ cargo }}{% endif %}</h1>
+    <a class="boton" href="{% url 'turnos:cuadro' %}?anio={{ anio }}&mes={{ mes }}">Volver al cuadro de turno</a>
+</header>
+
+<form method="get" class="filtros">
+    <select name="cargo" aria-label="Cargo" required>
+        <option value="">Elija el cargo…</option>
+        {% for c in cargos %}<option value="{{ c.pk }}"{% if cargo and c.pk == cargo.pk %} selected{% endif %}>{{ c }}</option>{% endfor %}
+    </select>
+    <select name="mes" aria-label="Mes">
+        {% for numero, nombre in meses %}<option value="{{ numero }}"{% if numero == mes %} selected{% endif %}>{{ nombre }}</option>{% endfor %}
+    </select>
+    <select name="anio" aria-label="Año">
+        {% for a in anios %}<option value="{{ a }}"{% if a == anio %} selected{% endif %}>{{ a }}</option>{% endfor %}
+    </select>
+    <button type="submit" class="boton boton-primario">Ver el grupo</button>
+</form>
+
+{% if not cargo %}
+    <p class="ayuda">Elija el cargo y el mes. El sistema compara el grupo con el cuadro del mes anterior y propone el papel de cada persona.</p>
+{% else %}
+
+<section class="programar-cambios">
+    <h2>Cambios de personal para {{ nombre_mes|lower }} {{ anio }}</h2>
+    <p class="ayuda">Comparado con el cuadro del mes anterior.</p>
+    <div class="cambios-grupo">
+        <div><strong>Siguen</strong>
+            {% for p in cambios.sigue %}<span class="persona-cambio">{{ p.funcionario.nombre_completo }}</span>{% empty %}<span class="ayuda">Nadie</span>{% endfor %}
+        </div>
+        <div><strong class="texto-entra">Entran</strong>
+            {% for p in cambios.entra %}<span class="persona-cambio cambio-entra">{{ p.funcionario.nombre_completo }}{% if p.desde.day > 1 %} <small>desde el {{ p.desde|date:'j/m' }}</small>{% endif %}</span>{% empty %}<span class="ayuda">Nadie</span>{% endfor %}
+        </div>
+        <div><strong class="texto-sale">Salen</strong>
+            {% for p in cambios.sale %}<span class="persona-cambio cambio-sale">{{ p.funcionario.nombre_completo }}{% if p.esta %} <small>hasta el {{ p.hasta|date:'j/m' }}</small>{% else %} <small>no está este mes</small>{% endif %}</span>{% empty %}<span class="ayuda">Nadie</span>{% endfor %}
+        </div>
+    </div>
+</section>
+
+{% for error in errores %}<div class="mensaje mensaje-error">{{ error }}</div>{% endfor %}
+
+<form method="post" class="programar-formulario">
+    {% csrf_token %}
+    <input type="hidden" name="cargo" value="{{ cargo.pk }}">
+    <input type="hidden" name="anio" value="{{ anio }}">
+    <input type="hidden" name="mes" value="{{ mes }}">
+
+    <h2>Papel de cada persona</h2>
+    <p class="ayuda">La línea es la de la primera semana del mes; cada semana pasa a la siguiente
+        ({% for i, nombre in lineas %}{{ nombre }}{% if not forloop.last %} → {% endif %}{% endfor %} → …).
+        El relevo cubre las ausencias y da un descanso por semana a cada titular, solo en los días y turnos que elija.</p>
+    <div class="tabla-contenedor">
+        <table class="tabla tabla-programar">
+            <thead>
+                <tr><th>Funcionario</th><th>Papel</th><th>Línea 1.ª semana</th><th>Vacaciones o ausencia</th><th>Días que puede (relevo)</th></tr>
+            </thead>
+            <tbody>
+                {% for f in filas_formulario %}
+                    <tr data-fila>
+                        <td>{{ f.funcionario.nombre_completo }}
+                            {% if f.estado == 'entra' %}<span class="etiqueta cambio-entra">Entra</span>{% elif f.estado == 'sale' %}<span class="etiqueta cambio-sale">Sale el {{ f.hasta|date:'j/m' }}</span>{% endif %}
+                        </td>
+                        <td>
+                            <select name="papel_{{ f.funcionario.pk }}" class="elegir-papel" aria-label="Papel de {{ f.funcionario.nombre_completo }}">
+                                {% for valor, nombre in papeles %}<option value="{{ valor }}"{% if valor == f.papel %} selected{% endif %}>{{ nombre }}</option>{% endfor %}
+                            </select>
+                        </td>
+                        <td>
+                            <select name="linea_{{ f.funcionario.pk }}" class="solo-titular" aria-label="Línea de {{ f.funcionario.nombre_completo }}">
+                                <option value="">—</option>
+                                {% for i, nombre in lineas %}<option value="{{ i }}"{% if i == f.linea %} selected{% endif %}>{{ nombre }}</option>{% endfor %}
+                            </select>
+                        </td>
+                        <td class="vacaciones">
+                            <input type="date" name="vac_desde_{{ f.funcionario.pk }}" value="{{ f.vac_desde|date:'Y-m-d' }}" aria-label="Ausente desde">
+                            <input type="date" name="vac_hasta_{{ f.funcionario.pk }}" value="{{ f.vac_hasta|date:'Y-m-d' }}" aria-label="Ausente hasta">
+                        </td>
+                        <td>
+                            <details class="solo-relevo dias-relevo">
+                                <summary>Días y turnos ({{ f.dias_disponibles }} día{{ f.dias_disponibles|pluralize }})</summary>
+                                <div class="dias-relevo-rejilla">
+                                    {% for d in f.disponibles %}
+                                        <label class="{% if d.fecha.weekday == 0 %}inicio-semana{% endif %}{% if not d.valor %} dia-no-puede{% endif %}" title="{{ d.fecha|date:'l j' }}">
+                                            <span>{{ d.fecha|date:'D'|slice:':2' }} {{ d.fecha.day }}</span>
+                                            <select name="disp_{{ f.funcionario.pk }}_{{ d.fecha|date:'Y-m-d' }}" aria-label="{{ f.funcionario.nombre_corto }}, {{ d.fecha|date:'l j' }}">
+                                                {% for valor, texto in d.opciones %}<option value="{{ valor }}"{% if valor == d.valor %} selected{% endif %}>{{ texto }}</option>{% endfor %}
+                                            </select>
+                                        </label>
+                                    {% endfor %}
+                                </div>
+                                <p class="ayuda">Mañana o tarde: cualquier turno de esa jornada. Un turno exacto (C1, T2…) es un turno que pidió: se le da, y ese día descansa el titular que lo tenía.</p>
+                            </details>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="botones-formulario">
+        <button type="submit" name="accion" value="ver" class="boton boton-primario">Ver borrador</button>
+    </div>
+
+    {% if borrador %}
+        <h2 id="borrador">Borrador de {{ nombre_mes|lower }} {{ anio }}</h2>
+        <p class="ayuda">Todavía no se ha guardado nada. Revise el cuadro; si algo no le sirve, cambie los papeles o los días arriba y vuelva a «Ver borrador».</p>
+        {% for aviso in avisos %}<div class="mensaje mensaje-error">{{ aviso }}</div>{% endfor %}
+
+        <div class="tabla-contenedor">
+            <table class="cuadro-borrador">
+                <thead>
+                    <tr>
+                        <th class="col-nombre">Funcionario</th>
+                        {% for c in columnas %}<th class="{% if c.domingo %}domingo{% elif c.festivo %}festivo{% endif %}">{{ c.fecha.day }}<br><small>{{ c.letra }}{% if c.festivo %}F{% endif %}</small></th>{% endfor %}
+                        {% for s in semanas %}<th class="col-horas">Sem<br><small>{{ s }}</small></th>{% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for fila in filas %}
+                        <tr>
+                            <th class="col-nombre">{{ fila.funcionario.nombre_corto }}<small>{{ fila.papel }}{% if fila.linea %} · {{ fila.linea }}{% endif %}</small></th>
+                            {% for celda in fila.celdas %}
+                                <td class="{% if celda.domingo %}domingo{% elif celda.festivo %}festivo{% endif %}">
+                                    {% if celda.tipo %}<span class="chip chip-mini" style="background: {{ celda.tipo.color }}; color: {{ celda.tipo.color_texto }}" title="{{ celda.tipo.nombre }} · {{ celda.tipo.horario }}">{{ celda.tipo.abreviatura }}</span>
+                                    {% elif celda.descanso %}<span class="marca-descanso" title="Descanso (lo cubre el relevo)">D</span>
+                                    {% elif celda.ausente %}<span class="marca-ausente" title="Vacaciones o fuera del cuadro">V</span>{% endif %}
+                                </td>
+                            {% endfor %}
+                            {% for h in fila.horas %}<td class="col-horas{% if h.excede %} excede{% endif %}">{{ h.horas }}</td>{% endfor %}
+                        </tr>
+                    {% endfor %}
+                    {% if hay_vacantes %}
+                        <tr class="fila-vacantes">
+                            <th class="col-nombre">Sin cubrir</th>
+                            {% for v in vacantes %}<td class="{% if v.domingo %}domingo{% endif %}">{% for codigo in v.codigos %}<span class="chip chip-mini chip-vacante">{{ codigo }}</span>{% endfor %}</td>{% endfor %}
+                            {% for s in semanas %}<td></td>{% endfor %}
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+        <p class="ayuda"><span class="marca-descanso">D</span> descanso de la semana, lo cubre el relevo ·
+            <span class="marca-ausente">V</span> vacaciones o fuera del cuadro ·
+            en rojo, las semanas de más de {{ jornada }} horas.
+            Disponibilidades (HC) y extramurales se agregan después en el cuadro.</p>
+
+        {% if existentes %}
+            <div class="mensaje">Estas personas ya tienen {{ existentes }} turno{{ existentes|pluralize }} en {{ nombre_mes|lower }}: al guardar se reemplazan por este borrador.</div>
+        {% endif %}
+        <div class="botones-formulario">
+            <button type="submit" name="accion" value="guardar" class="boton boton-primario">Guardar en el cuadro de turno</button>
+        </div>
+    {% endif %}
+</form>
+
+<script>
+// Muestra la línea solo a los titulares y los días disponibles solo a los relevos.
+document.querySelectorAll('[data-fila]').forEach(fila => {
+    const papel = fila.querySelector('.elegir-papel');
+    const actualizar = () => {
+        fila.querySelector('.solo-titular').style.visibility = papel.value === 'titular' ? '' : 'hidden';
+        fila.querySelector('.solo-relevo').style.visibility = papel.value === 'relevo' ? '' : 'hidden';
+    };
+    papel.addEventListener('change', actualizar);
+    actualizar();
+});
+{% if borrador %}document.getElementById('borrador').scrollIntoView();{% endif %}
+</script>
+{% endif %}
+{% endblock %}

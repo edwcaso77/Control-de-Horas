@@ -31,6 +31,7 @@
             {% include 'includes/campo.html' with campo=form.cargo %}
             {% include 'includes/campo.html' with campo=form.area %}
             {% include 'includes/campo.html' with campo=form.fecha_ingreso %}
+            {% include 'includes/campo.html' with campo=form.fecha_retiro %}
         </div>
         {% if not form.cargo.field.queryset or not form.area.field.queryset %}
             <p class="ayuda">
