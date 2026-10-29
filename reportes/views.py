@@ -1,5 +1,6 @@
 import datetime
 import io
+from urllib.parse import urlencode
 
 from django.http import HttpResponse
 from django.shortcuts import render
@@ -8,7 +9,7 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
-from funcionarios.models import Area
+from funcionarios.models import Area, Cargo
 from funcionarios.permisos import administrador_requerido
 
 from .clasificacion import FIN_NOCHE, INICIO_NOCHE
@@ -28,6 +29,11 @@ def _area_elegida(request):
     return Area.objects.filter(pk=area).first() if area.isdigit() else None
 
 
+def _cargo_elegido(request):
+    cargo = request.GET.get('cargo', '')
+    return Cargo.objects.filter(pk=cargo).first() if cargo.isdigit() else None
+
+
 def _celdas(horas):
     """(valor, clase css) de cada columna de horas, en orden."""
     return [(horas[c], CLASES.get(c, '')) for c in CLAVES]
@@ -42,7 +48,8 @@ def conteo(request):
     """Conteo de horas de una semana (lunes a domingo) con las columnas del formato de nómina."""
     lunes, domingo = _semana_elegida(request)
     area = _area_elegida(request)
-    filas, totales, total_general = conteo_semana(lunes, area)
+    cargo = _cargo_elegido(request)
+    filas, totales, total_general = conteo_semana(lunes, area, cargo)
 
     # Filas agrupadas por funcionario, con su total al final. Los valores van en el orden de las columnas.
     grupos = []
@@ -60,6 +67,10 @@ def conteo(request):
         'hoy': timezone.localdate(),
         'areas': Area.objects.filter(activo=True),
         'area': area,
+        'cargos': Cargo.objects.filter(activo=True),
+        'cargo': cargo,
+        # Área y cargo elegidos, para no perderlos al cambiar de semana o descargar el Excel.
+        'filtros': urlencode({clave: valor.pk for clave, valor in (('area', area), ('cargo', cargo)) if valor}),
         'grupos': grupos,
         'columnas': COLUMNAS_HORAS,
         'total_general': _celdas(total_general),
@@ -73,7 +84,8 @@ def conteo_excel(request):
     """El mismo conteo en Excel, con el formato de la institución y totales con fórmulas."""
     lunes, domingo = _semana_elegida(request)
     area = _area_elegida(request)
-    filas, _, _ = conteo_semana(lunes, area)
+    cargo = _cargo_elegido(request)
+    filas, _, _ = conteo_semana(lunes, area, cargo)
 
     libro = Workbook()
     hoja = libro.active
@@ -81,7 +93,8 @@ def conteo_excel(request):
     fuente = lambda **kw: Font(name='Arial', **kw)
     borde = Border(*(Side(style='thin', color='999999'),) * 4)
 
-    hoja['A1'] = f'Conteo de horas · semana del {lunes:%d/%m/%Y} al {domingo:%d/%m/%Y}' + (f' · {area}' if area else '')
+    filtro = ''.join(f' · {valor}' for valor in (area, cargo) if valor)
+    hoja['A1'] = f'Conteo de horas · semana del {lunes:%d/%m/%Y} al {domingo:%d/%m/%Y}{filtro}'
     hoja['A1'].font = fuente(bold=True, size=13)
     hoja['A2'] = (f'Nocturna: {INICIO_NOCHE:%H:%M} a {FIN_NOCHE:%H:%M}. Festivo: domingos y festivos. '
                   'Horas extra: solicitudes aprobadas. Recargos, diurna festivo y nocturnas festivas: turnos asignados. '
@@ -125,7 +138,7 @@ def conteo_excel(request):
         celda.border = borde
     hoja.freeze_panes = hoja.cell(row=primera, column=1)
 
-    _hoja_totales(libro, hoja, filas, primera, ultima, lunes, domingo, area, fuente, borde)
+    _hoja_totales(libro, hoja, filas, primera, ultima, lunes, domingo, filtro, fuente, borde)
 
     salida = io.BytesIO()
     libro.save(salida)
@@ -136,10 +149,10 @@ def conteo_excel(request):
     return respuesta
 
 
-def _hoja_totales(libro, detalle, filas, primera, ultima, lunes, domingo, area, fuente, borde):
+def _hoja_totales(libro, detalle, filas, primera, ultima, lunes, domingo, filtro, fuente, borde):
     """Hoja con el total de horas de la semana por funcionario; suma con fórmulas la hoja del detalle."""
     hoja = libro.create_sheet('Total horas')
-    hoja['A1'] = f'Total de horas · semana del {lunes:%d/%m/%Y} al {domingo:%d/%m/%Y}' + (f' · {area}' if area else '')
+    hoja['A1'] = f'Total de horas · semana del {lunes:%d/%m/%Y} al {domingo:%d/%m/%Y}{filtro}'
     hoja['A1'].font = fuente(bold=True, size=13)
 
     fila_encabezado = 3

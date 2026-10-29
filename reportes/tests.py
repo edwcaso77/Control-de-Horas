@@ -5,7 +5,7 @@ from django.test import TestCase
 from django.urls import reverse
 from openpyxl import load_workbook
 
-from funcionarios.models import Area
+from funcionarios.models import Area, Cargo
 from funcionarios.tests import crear_funcionario
 from horas_extra.models import SolicitudHoraExtra
 from turnos.models import AsignacionTurno, TipoTurno
@@ -107,6 +107,20 @@ class ConteoSemanaTests(TestCase):
         otra = Area.objects.create(nombre='Hospitalización')
         self.assertEqual(len(conteo_semana(LUNES)[0]), 1)
         self.assertEqual(conteo_semana(LUNES, otra)[0], [])
+
+    def test_filtra_por_cargo(self):
+        medico = Cargo.objects.create(nombre='Médico')
+        sofia = crear_funcionario('3000', nombres='Sofía', cargo=medico.pk)
+        AsignacionTurno.objects.create(funcionario=self.ana, fecha=MARTES, tipo_turno=self.noche)
+        AsignacionTurno.objects.create(funcionario=sofia, fecha=MARTES, tipo_turno=self.c1)
+        self.assertEqual([fila['funcionario'] for fila in conteo_semana(LUNES, cargo=medico)[0]], [sofia])
+
+        self.client.force_login(self.admin.usuario)
+        pagina = self.client.get(reverse('reportes:conteo'), {'semana': '2026-10-15', 'cargo': medico.pk})
+        self.assertEqual([grupo['funcionario'] for grupo in pagina.context['grupos']], [sofia])
+        self.assertContains(pagina, f'excel/?semana=2026-10-12&cargo={medico.pk}')  # el Excel sale con el mismo filtro
+        archivo = self.client.get(reverse('reportes:conteo_excel'), {'semana': '2026-10-15', 'cargo': medico.pk})
+        self.assertTrue(load_workbook(io.BytesIO(archivo.content))['Conteo de horas']['A1'].value.endswith(' · Médico'))
 
     def test_pantalla_solo_para_administradores(self):
         self.client.force_login(self.ana.usuario)

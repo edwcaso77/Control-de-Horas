@@ -8,18 +8,22 @@
 {% block contenido %}
 <header class="encabezado-pagina">
     <h1>Conteo de horas</h1>
-    <a class="boton boton-verde" href="{% url 'reportes:conteo_excel' %}?semana={{ lunes|date:'Y-m-d' }}{% if area %}&area={{ area.pk }}{% endif %}">Descargar Excel</a>
+    <a class="boton boton-verde" href="{% url 'reportes:conteo_excel' %}?semana={{ lunes|date:'Y-m-d' }}{% if filtros %}&{{ filtros }}{% endif %}">Descargar Excel</a>
 </header>
 
 <form method="get" class="barra-semana">
-    <a class="boton" href="?semana={{ anterior|date:'Y-m-d' }}{% if area %}&area={{ area.pk }}{% endif %}" aria-label="Semana anterior" title="Semana anterior">&#8249;</a>
+    <a class="boton" href="?semana={{ anterior|date:'Y-m-d' }}{% if filtros %}&{{ filtros }}{% endif %}" aria-label="Semana anterior" title="Semana anterior">&#8249;</a>
     <strong class="titulo-semana">Semana del {{ lunes|date:'j \d\e F' }} al {{ domingo|date:'j \d\e F \d\e Y' }}</strong>
-    <a class="boton" href="?semana={{ siguiente|date:'Y-m-d' }}{% if area %}&area={{ area.pk }}{% endif %}" aria-label="Semana siguiente" title="Semana siguiente">&#8250;</a>
-    <a class="boton" href="?semana={{ hoy|date:'Y-m-d' }}{% if area %}&area={{ area.pk }}{% endif %}">Esta semana</a>
+    <a class="boton" href="?semana={{ siguiente|date:'Y-m-d' }}{% if filtros %}&{{ filtros }}{% endif %}" aria-label="Semana siguiente" title="Semana siguiente">&#8250;</a>
+    <a class="boton" href="?semana={{ hoy|date:'Y-m-d' }}{% if filtros %}&{{ filtros }}{% endif %}">Esta semana</a>
     <input type="date" name="semana" value="{{ lunes|date:'Y-m-d' }}" aria-label="Ir a la semana de" onchange="this.form.submit()">
     <select name="area" aria-label="Sección" onchange="this.form.submit()">
         <option value="">Todas las secciones</option>
         {% for a in areas %}<option value="{{ a.pk }}"{% if area and a.pk == area.pk %} selected{% endif %}>{{ a }}</option>{% endfor %}
+    </select>
+    <select name="cargo" aria-label="Cargo" onchange="this.form.submit()">
+        <option value="">Todos los cargos</option>
+        {% for c in cargos %}<option value="{{ c.pk }}"{% if cargo and c.pk == cargo.pk %} selected{% endif %}>{{ c }}</option>{% endfor %}
     </select>
     {% if grupos %}<button type="button" class="boton" id="desplegar-todo">Desplegar todo</button>{% endif %}
 </form>
@@ -63,7 +67,7 @@
             </tbody>
         {% empty %}
             <tbody>
-                <tr><td colspan="13" class="vacio">No hay turnos ni horas extra aprobadas esta semana{% if area %} en {{ area }}{% endif %}.</td></tr>
+                <tr><td colspan="13" class="vacio">No hay turnos ni horas extra aprobadas esta semana{% if cargo %} para el cargo {{ cargo }}{% endif %}{% if area %} en {{ area }}{% endif %}.</td></tr>
             </tbody>
         {% endfor %}
         {% if grupos %}

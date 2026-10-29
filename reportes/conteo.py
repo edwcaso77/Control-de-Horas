@@ -29,7 +29,7 @@ def semana_de(fecha):
     return lunes, lunes + datetime.timedelta(days=6)
 
 
-def conteo_semana(lunes, area=None):
+def conteo_semana(lunes, area=None, cargo=None):
     """Filas del conteo de una semana: una por funcionario y día trabajado.
 
     - Horas extra: de las solicitudes aprobadas (tiempo aprobado).
@@ -53,6 +53,9 @@ def conteo_semana(lunes, area=None):
     if area:
         turnos = turnos.filter(funcionario__area=area)
         extras = extras.filter(funcionario__area=area)
+    if cargo:
+        turnos = turnos.filter(funcionario__cargo=cargo)
+        extras = extras.filter(funcionario__cargo=cargo)
 
     filas = defaultdict(lambda: {'horas': dict.fromkeys(CLAVES, 0.0), 'turnos': [], 'motivos': []})
 
