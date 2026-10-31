@@ -6,6 +6,7 @@ app_name = 'turnos'
 
 urlpatterns = [
     path('', views.cuadro, name='cuadro'),
+    path('pdf/', views.cuadro_pdf, name='cuadro_pdf'),
     path('dia/<int:anio>/<int:mes>/<int:dia>/', views.dia, name='dia'),
     path('varios-dias/', views.varios, name='varios'),
     path('subir-excel/', views.subir_excel, name='subir_excel'),

@@ -119,6 +119,27 @@ class CuadroTurnoTests(DatosCuadroMixin, TestCase):
         self.assertTrue(AsignacionTurno.objects.filter(funcionario=self.ana).exists())
         self.assertFalse(AsignacionTurno.objects.filter(funcionario=sofia).exists())
 
+    def test_descargar_pdf_con_filtros(self):
+        medico = Cargo.objects.create(nombre='Médico')
+        sofia = crear_funcionario('4000', nombres='Sofía', cargo=medico.pk)
+        AsignacionTurno.objects.create(funcionario=sofia, fecha=self.fecha, tipo_turno=self.noche)
+
+        respuesta = self.client.get(reverse('turnos:cuadro_pdf'), {
+            'anio': 2026, 'mes': 10, 'area': self.urgencias.pk, 'cargo': medico.pk,
+        })
+        self.assertEqual(respuesta['Content-Type'], 'application/pdf')
+        self.assertEqual(
+            respuesta['Content-Disposition'], 'attachment; filename="cuadro_turno_2026-10_urgencias_medico.pdf"',
+        )
+        self.assertTrue(respuesta.content.startswith(b'%PDF'))
+
+        # El botón del cuadro lleva el mes y los filtros elegidos.
+        pagina = self.client.get(reverse('turnos:cuadro'), {'anio': 2026, 'mes': 10, 'cargo': medico.pk})
+        self.assertContains(pagina, f"{reverse('turnos:cuadro_pdf')}?anio=2026&mes=10&cargo={medico.pk}")
+
+        self.client.force_login(self.ana.usuario)
+        self.assertEqual(self.client.get(reverse('turnos:cuadro_pdf')).status_code, 403)
+
     def test_turno_inexistente_se_ignora(self):
         self.client.post(self._url_dia(), {f'turno_{self.ana.pk}_1': '99999', 'alcance': 'dia'})
         self.assertFalse(AsignacionTurno.objects.exists())

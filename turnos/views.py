@@ -7,10 +7,11 @@ from django.conf import settings
 from django.contrib import messages
 from django.db import transaction
 from django.db.models import Q
-from django.http import Http404
+from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.text import slugify
 from django.views.decorators.http import require_POST
 
 from calendario.models import Festivo
@@ -22,6 +23,7 @@ from .forms import TipoTurnoForm
 from .agrupar import turnos_por_dia
 from .importar import ErrorExcel, fechas_de, leer_excel
 from .models import TURNOS_POR_DIA, AsignacionTurno, TipoTurno, formato_horas
+from . import pdf
 from . import programar as rotacion
 
 
@@ -82,6 +84,23 @@ def cuadro(request):
         'total_turnos': AsignacionTurno.objects.count() if settings.DEBUG else 0,
     })
     return render(request, 'turnos/cuadro.html', contexto)
+
+
+@administrador_requerido
+def cuadro_pdf(request):
+    """El cuadro del mes en PDF (una fila por funcionario, una columna por día), con el área y el cargo elegidos."""
+    hoy = timezone.localdate()
+    anio = _entero(request.GET.get('anio'), hoy.year, ANIO_MIN, ANIO_MAX)
+    mes = _entero(request.GET.get('mes'), hoy.month, 1, 12)
+    area = _area_elegida(request.GET)
+    cargo = _cargo_elegido(request.GET)
+    funcionarios = list(_funcionarios_activos(area, cargo))
+
+    contenido = pdf.cuadro_pdf(anio, mes, funcionarios, ' · '.join(str(valor) for valor in (area, cargo) if valor))
+    nombre = '_'.join(['cuadro_turno', f'{anio}-{mes:02d}'] + [slugify(valor) for valor in (area, cargo) if valor])
+    respuesta = HttpResponse(contenido, content_type='application/pdf')
+    respuesta['Content-Disposition'] = f'attachment; filename="{nombre}.pdf"'
+    return respuesta
 
 
 @require_POST
