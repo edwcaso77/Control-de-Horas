@@ -7,6 +7,7 @@ app_name = 'funcionarios'
 urlpatterns = [
     path('', views.lista, name='lista'),
     path('nuevo/', views.crear, name='crear'),
+    path('registro-de-ingresos/', views.ingresos, name='ingresos'),
     path('importar/', views.importar_excel, name='importar'),
     path('importar/plantilla/', views.plantilla, name='plantilla'),
     path('importar/contrasenas/', views.credenciales, name='credenciales'),

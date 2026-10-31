@@ -30,7 +30,7 @@
                 <a href="{% url 'reportes:conteo' %}"
                    class="{% if app == 'reportes' %}activo{% endif %}">Conteo de horas</a>
                 <a href="{% url 'funcionarios:lista' %}"
-                   class="{% if app == 'funcionarios' and not tipo %}activo{% endif %}">Funcionarios</a>
+                   class="{% if app == 'funcionarios' and not tipo and vista != 'ingresos' %}activo{% endif %}">Funcionarios</a>
                 <a href="{% url 'funcionarios:catalogo' 'cargos' %}"
                    class="{% if tipo == 'cargos' %}activo{% endif %}">Cargos</a>
                 <a href="{% url 'funcionarios:catalogo' 'areas' %}"
@@ -39,6 +39,8 @@
                    class="{% if vista == 'festivos' %}activo{% endif %}">Festivos</a>
                 <a href="{% url 'turnos:tipos' %}"
                    class="{% if app == 'turnos' and 'tipo' in vista %}activo{% endif %}">Tipos de turno</a>
+                <a href="{% url 'funcionarios:ingresos' %}"
+                   class="{% if vista == 'ingresos' %}activo{% endif %}">Registro de ingresos</a>
             {% endif %}
         </nav>
 

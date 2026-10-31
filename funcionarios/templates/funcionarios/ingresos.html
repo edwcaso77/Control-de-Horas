@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Registro de ingresos{% endblock %}
+
+{% block contenido %}
+<header class="encabezado-pagina">
+    <h1>Registro de ingresos</h1>
+</header>
+
+<p class="ayuda">
+    Cada intento de entrar al sistema, del más reciente al más antiguo (se muestran hasta {{ maximo }}).
+    Después de 5 contraseñas equivocadas seguidas, el usuario queda bloqueado 15 minutos.
+    Si ve ingresos que nadie reconoce, cambie la contraseña de ese funcionario.
+</p>
+
+<form method="get" class="filtros">
+    <input type="search" name="q" value="{{ busqueda }}" placeholder="Buscar por documento, nombre o IP" aria-label="Buscar">
+    <select name="resultado" aria-label="Resultado" onchange="this.form.submit()">
+        <option value="">Todos los resultados</option>
+        {% for valor, texto in resultados %}
+            <option value="{{ valor }}"{% if valor == resultado %} selected{% endif %}>{{ texto }}</option>
+        {% endfor %}
+    </select>
+    <button type="submit" class="boton">Buscar</button>
+</form>
+
+<div class="tabla-contenedor">
+    <table class="tabla">
+        <thead>
+            <tr>
+                <th>Fecha y hora</th>
+                <th>Documento escrito</th>
+                <th>Funcionario</th>
+                <th>Resultado</th>
+                <th>Dirección IP</th>
+                <th>Navegador</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in registros %}
+                <tr>
+                    <td>{{ r.fecha|date:'d/m/Y H:i:s' }}</td>
+                    <td>{{ r.documento }}</td>
+                    <td>{{ r.usuario.funcionario|default:"—" }}</td>
+                    <td>
+                        {% if r.resultado == 'EXITOSO' %}<span class="etiqueta etiqueta-aprobada">{{ r.get_resultado_display }}</span>
+                        {% elif r.resultado == 'FALLIDO' %}<span class="etiqueta etiqueta-pendiente">{{ r.get_resultado_display }}</span>
+                        {% else %}<span class="etiqueta etiqueta-rechazada">{{ r.get_resultado_display }}</span>{% endif %}
+                    </td>
+                    <td>{{ r.ip|default:"—" }}</td>
+                    <td><small title="{{ r.navegador }}">{{ r.navegador|truncatechars:60|default:"—" }}</small></td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="6" class="vacio">No hay intentos de ingreso que coincidan con la búsqueda.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

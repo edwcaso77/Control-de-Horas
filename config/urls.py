@@ -2,7 +2,9 @@ from django.contrib import admin
 from django.contrib.auth import views as auth_views
 from django.urls import include, path
 
-from funcionarios.forms import IngresoForm
+from funcionarios.forms import IngresoAdminForm, IngresoForm
+
+admin.site.login_form = IngresoAdminForm
 
 urlpatterns = [
     path('admin/', admin.site.urls),

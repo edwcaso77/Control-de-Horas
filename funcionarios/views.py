@@ -7,7 +7,7 @@ from django.views.decorators.http import require_POST
 
 from . import importar
 from .forms import FuncionarioForm, catalogo_form
-from .models import Area, Cargo, Funcionario
+from .models import Area, Cargo, Funcionario, Ingreso
 from .permisos import administrador_requerido
 
 CATALOGOS = {
@@ -44,6 +44,35 @@ def lista(request):
         'busqueda': busqueda,
         'area': area,
         'estado': estado,
+    })
+
+
+MAX_INGRESOS = 300
+
+
+@administrador_requerido
+def ingresos(request):
+    """Últimos intentos de ingreso al sistema: quién, cuándo, desde qué IP y si entró."""
+    registros = Ingreso.objects.select_related('usuario__funcionario')
+
+    busqueda = request.GET.get('q', '').strip()
+    if busqueda:
+        registros = registros.filter(
+            Q(documento__icontains=busqueda)
+            | Q(usuario__funcionario__nombres__icontains=busqueda)
+            | Q(usuario__funcionario__apellidos__icontains=busqueda)
+            | Q(ip__icontains=busqueda)
+        )
+    resultado = request.GET.get('resultado', '')
+    if resultado in Ingreso.Resultado.values:
+        registros = registros.filter(resultado=resultado)
+
+    return render(request, 'funcionarios/ingresos.html', {
+        'registros': registros[:MAX_INGRESOS],
+        'maximo': MAX_INGRESOS,
+        'busqueda': busqueda,
+        'resultado': resultado,
+        'resultados': Ingreso.Resultado.choices,
     })
 
 

@@ -1,20 +1,55 @@
 from django import forms
+from django.conf import settings
 from django.contrib.auth import get_user_model, password_validation
+from django.contrib.admin.forms import AdminAuthenticationForm
 from django.contrib.auth.forms import AuthenticationForm
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Q
 
-from .models import Area, Cargo, Funcionario
+from . import ingresos
+from .models import Area, Cargo, Funcionario, Ingreso
 
 Usuario = get_user_model()
 
 
 class IngresoForm(AuthenticationForm):
+    """Ingreso con documento y contraseña. Anota cada intento y bloquea un rato tras varios fallos seguidos."""
+
+    error_messages = {
+        **AuthenticationForm.error_messages,
+        'bloqueado': (
+            f'Demasiados intentos con contraseña incorrecta. Por seguridad, este usuario queda bloqueado '
+            f'{settings.MINUTOS_BLOQUEO} minutos. Si no fue usted, avise al administrador.'
+        ),
+    }
+    bloqueado = False
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['username'].label = 'Número de documento'
         self.fields['password'].label = 'Contraseña'
+
+    def clean(self):
+        documento = (self.cleaned_data.get('username') or '').strip()
+        if not documento or not self.cleaned_data.get('password'):
+            return super().clean()
+        if ingresos.bloqueado(documento):
+            # Aunque la contraseña sea la correcta: así no sirve seguir probando durante el bloqueo.
+            ingresos.anotar(self.request, documento, Ingreso.Resultado.BLOQUEADO)
+            self.bloqueado = True
+            raise ValidationError(self.error_messages['bloqueado'], code='bloqueado')
+        try:
+            datos = super().clean()
+        except ValidationError:
+            ingresos.anotar(self.request, documento, Ingreso.Resultado.FALLIDO)
+            raise
+        ingresos.anotar(self.request, documento, Ingreso.Resultado.EXITOSO, usuario=self.user_cache)
+        return datos
+
+
+class IngresoAdminForm(IngresoForm, AdminAuthenticationForm):
+    """El mismo registro y bloqueo para el ingreso al administrador de Django (/admin/)."""
 
 
 class FuncionarioForm(forms.ModelForm):

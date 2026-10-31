@@ -1,12 +1,14 @@
 import datetime
 import io
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from .forms import FuncionarioForm
-from .models import Area, Cargo, Funcionario
+from .models import Area, Cargo, Funcionario, Ingreso
 
 Usuario = get_user_model()
 CLAVE = 'Clave-de-prueba-2026'
@@ -134,6 +136,65 @@ class RegistroFuncionarioTests(TestCase):
         self.assertEqual(list(inactivos), [inactivo])
         busqueda = self.client.get(reverse('funcionarios:lista'), {'q': 'marta'}).context['funcionarios']
         self.assertEqual([f.numero_documento for f in busqueda], ['6000'])
+
+
+class SeguridadIngresoTests(TestCase):
+    def setUp(self):
+        self.admin = crear_funcionario('1000', es_administrador=True)
+        self.ana = crear_funcionario('2000')
+
+    def _ingresar(self, documento='2000', clave=CLAVE, **cabeceras):
+        return self.client.post(reverse('ingresar'), {'username': documento, 'password': clave}, **cabeceras)
+
+    def test_anota_ingresos_exitosos_y_fallidos_con_la_ip(self):
+        self._ingresar(clave='equivocada', HTTP_X_REAL_IP='203.0.113.7')
+        self._ingresar('9999', clave='otra')
+        self._ingresar(HTTP_X_FORWARDED_FOR='198.51.100.4, 10.0.0.1')
+        registros = list(Ingreso.objects.order_by('fecha', 'pk'))
+        self.assertEqual(
+            [(r.documento, r.resultado, r.ip) for r in registros],
+            [('2000', 'FALLIDO', '203.0.113.7'), ('9999', 'FALLIDO', '127.0.0.1'), ('2000', 'EXITOSO', '198.51.100.4')],
+        )
+        self.assertEqual(registros[2].usuario, self.ana.usuario)
+
+    def test_bloquea_tras_cinco_fallos_aunque_la_clave_sea_correcta(self):
+        for _ in range(5):
+            self._ingresar(clave='equivocada')
+        respuesta = self._ingresar()
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertContains(respuesta, 'queda bloqueado 15 minutos')
+        self.assertNotIn('_auth_user_id', self.client.session)
+        self.assertEqual(Ingreso.objects.filter(resultado='BLOQUEADO').count(), 1)
+        # Otros usuarios siguen entrando con normalidad.
+        self.assertRedirects(self._ingresar('1000'), reverse('calendario:mes'))
+
+    def test_el_bloqueo_pasa_despues_de_quince_minutos(self):
+        for _ in range(5):
+            self._ingresar(clave='equivocada')
+        Ingreso.objects.update(fecha=timezone.now() - datetime.timedelta(minutes=16))
+        self.assertRedirects(self._ingresar(), reverse('calendario:mes'))
+
+    def test_un_ingreso_exitoso_reinicia_la_cuenta(self):
+        for _ in range(4):
+            self._ingresar(clave='equivocada')
+        self._ingresar()
+        self.client.logout()
+        self._ingresar(clave='equivocada')
+        self.assertRedirects(self._ingresar(), reverse('calendario:mes'))
+
+    def test_la_sesion_vence_al_cerrar_el_navegador_y_por_inactividad(self):
+        self._ingresar()
+        cookie = self.client.cookies[settings.SESSION_COOKIE_NAME]
+        self.assertEqual(cookie['expires'], '')  # cookie de sesión: el navegador la borra al cerrarse
+        self.assertEqual(self.client.session.get_expiry_age(), 30 * 60)
+
+    def test_pantalla_de_ingresos_solo_para_administradores(self):
+        self._ingresar(clave='equivocada')
+        self._ingresar()
+        self.assertEqual(self.client.get(reverse('funcionarios:ingresos')).status_code, 403)
+        self.client.force_login(self.admin.usuario)
+        pagina = self.client.get(reverse('funcionarios:ingresos'), {'resultado': 'FALLIDO'})
+        self.assertEqual([r.resultado for r in pagina.context['registros']], ['FALLIDO'])
 
 
 class PermisosTests(TestCase):

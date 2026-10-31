@@ -18,7 +18,11 @@
         {% csrf_token %}
         {% if form.non_field_errors %}
             <div class="mensaje mensaje-error">
-                Número de documento o contraseña incorrectos.
+                {% if form.bloqueado %}
+                    {{ form.non_field_errors.0 }}
+                {% else %}
+                    Número de documento o contraseña incorrectos.
+                {% endif %}
             </div>
         {% endif %}
         {% include 'includes/campo.html' with campo=form.username %}

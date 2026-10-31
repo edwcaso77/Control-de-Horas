@@ -155,6 +155,16 @@ LOGIN_URL = 'ingresar'
 LOGIN_REDIRECT_URL = 'calendario:mes'
 LOGOUT_REDIRECT_URL = 'ingresar'
 
+# La sesión se cierra al cerrar el navegador y tras un rato sin usar el sistema (computadores compartidos).
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+SESSION_COOKIE_AGE = int(os.environ.get('DJANGO_MINUTOS_INACTIVIDAD', '30')) * 60
+SESSION_SAVE_EVERY_REQUEST = True  # cada página visitada vuelve a contar el tiempo desde cero
+
+# Después de INTENTOS_FALLIDOS_MAXIMOS contraseñas equivocadas en MINUTOS_BLOQUEO minutos, ese usuario
+# no puede entrar hasta que pase ese tiempo.
+INTENTOS_FALLIDOS_MAXIMOS = 5
+MINUTOS_BLOQUEO = 15
+
 
 # Email
 # https://docs.djangoproject.com/en/6.1/topics/email/#topic-email-configuration

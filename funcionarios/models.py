@@ -78,3 +78,32 @@ class Funcionario(models.Model):
     @property
     def activo(self):
         return self.usuario.is_active
+
+
+class Ingreso(models.Model):
+    """Cada intento de entrar al sistema, con o sin éxito. Sirve para revisar accesos y bloquear a quien adivina."""
+
+    class Resultado(models.TextChoices):
+        EXITOSO = 'EXITOSO', 'Entró'
+        FALLIDO = 'FALLIDO', 'Contraseña incorrecta'
+        BLOQUEADO = 'BLOQUEADO', 'Bloqueado por intentos'
+
+    # Lo que se escribió como usuario, aunque no exista: así se ven los intentos con documentos inventados.
+    documento = models.CharField('documento escrito', max_length=150)
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
+        verbose_name='usuario',
+    )
+    fecha = models.DateTimeField('fecha', auto_now_add=True)
+    ip = models.GenericIPAddressField('dirección IP', null=True, blank=True)
+    navegador = models.CharField('navegador', max_length=255, blank=True)
+    resultado = models.CharField('resultado', max_length=10, choices=Resultado.choices)
+
+    class Meta:
+        ordering = ['-fecha']
+        indexes = [models.Index(fields=['documento', 'fecha'])]
+        verbose_name = 'ingreso'
+        verbose_name_plural = 'registro de ingresos'
+
+    def __str__(self):
+        return f'{self.documento} · {self.get_resultado_display()} · {self.fecha:%d/%m/%Y %H:%M}'
